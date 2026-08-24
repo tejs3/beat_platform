@@ -85,11 +85,16 @@ export const useServiceStore = defineStore(
 
     function removeService(service: ServiceVO, clusterId: number, callBack: (...args: any) => void) {
       const target = service.displayName ?? service.name
+      const serviceId = Number(service.id)
+      if (!Number.isFinite(serviceId) || serviceId <= 0) {
+        message.error(t('common.no_data'))
+        return
+      }
       const tipText = t('common.confirm_action', { action: t('common.remove').toLowerCase(), target })
       return confirmModal({
         tipText,
         async onOk() {
-          const res = await remove({ clusterId, id: service.id! })
+          const res = await remove({ clusterId, id: serviceId })
           if (res) {
             message.success(t('common.delete_success'))
             return Promise.resolve(callBack())

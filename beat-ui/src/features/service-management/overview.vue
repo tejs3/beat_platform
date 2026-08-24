@@ -59,9 +59,18 @@
   const noChartData = computed(() => !chartData.value?.charts?.length)
   const serviceKeys = computed(() => Object.keys(baseConfig.value) as (keyof ServiceVO)[])
 
+  const resolveServiceId = (): number | undefined => {
+    const candidates = [resolvedServiceId?.value, route.params.serviceId, attrs.id]
+    for (const c of candidates) {
+      const n = Number(c)
+      if (Number.isFinite(n) && n > 0) return n
+    }
+    return undefined
+  }
+
   const payload = computed(() => {
     const clusterId = Number(route.params.id)
-    const serviceId = Number(resolvedServiceId?.value ?? route.params.serviceId ?? attrs.id)
+    const serviceId = resolveServiceId() ?? NaN
     return { clusterId, serviceId }
   })
 
@@ -97,10 +106,14 @@
       return
     }
 
+    const { serviceId: id } = payload.value
+    if (!Number.isFinite(id) || id <= 0) {
+      return
+    }
+
     isRunning.value = true
 
     try {
-      const { serviceId: id } = payload.value
       const data = await getServiceMetricsInfo({ id }, { interval: interval.value })
       chartData.value = { ...data }
     } catch (error) {

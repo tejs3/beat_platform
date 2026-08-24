@@ -78,7 +78,15 @@
 
   const payload = computed(() => {
     const clusterId = Number(route.params.id)
-    const id = Number(resolvedServiceId?.value ?? route.params.serviceId ?? attrs.id)
+    const candidates = [resolvedServiceId?.value, route.params.serviceId, attrs.id]
+    let id = NaN
+    for (const c of candidates) {
+      const n = Number(c)
+      if (Number.isFinite(n) && n > 0) {
+        id = n
+        break
+      }
+    }
     return { clusterId, id }
   })
 
@@ -228,10 +236,15 @@
   }
 
   const openConfigReview = async () => {
+    const sid = Number(payload.value.id)
+    if (!Number.isFinite(sid) || sid <= 0) {
+      message.error(t('common.no_data'))
+      return
+    }
     reviewOpen.value = true
     reviewLoading.value = true
     try {
-      const data = await reviewServiceConfigs(Number(payload.value.id))
+      const data = await reviewServiceConfigs(sid)
       reviewCards.value = Array.isArray(data) ? data : []
     } catch (error) {
       message.error(t('advisory.load_failed'))

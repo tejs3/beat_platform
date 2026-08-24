@@ -105,9 +105,7 @@ export const useStackStore = defineStore(
     }
   },
   {
-    persist: {
-      storage: localStorage,
-      paths: ['stacks', 'stackRelationMap']
-    }
+    // Always fetch stacks from API — persisting caused empty/stale catalogs after stack rename (bigtop→beat)
+    persist: false
   }
 )

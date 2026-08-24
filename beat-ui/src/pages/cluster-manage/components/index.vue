@@ -33,6 +33,11 @@
         activeParcel.value = st.activeParcel || ''
         if (st.repoError) repoError.value = String(st.repoError)
       }
+      // Prefer activated flag on parcel list when state.activeParcel is blank
+      if (!activeParcel.value) {
+        const activated = parcels.value.find((row) => row?.activated)
+        if (activated?.name) activeParcel.value = activated.name
+      }
       await loadParcelServices()
     } catch {
       message.error('Failed to load parcels')

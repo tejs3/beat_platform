@@ -70,10 +70,18 @@
     selectedRows: []
   })
 
+  const resolveServiceId = (): number | undefined => {
+    const candidates = [resolvedServiceId?.value, route.params.serviceId, attrs.id]
+    for (const c of candidates) {
+      const n = Number(c)
+      if (Number.isFinite(n) && n > 0) return n
+    }
+    return undefined
+  }
+
   const payload = computed(() => {
     const id = Number(route.params.id)
-    const serviceId = Number(resolvedServiceId?.value ?? route.params.serviceId ?? attrs.id)
-    return [id, serviceId] as [number, number]
+    return [id, resolveServiceId() ?? NaN] as [number, number]
   })
 
   const componentsFromStack = computed(() => {
@@ -297,6 +305,11 @@
       loading.value = false
       return
     }
+    // Process-style URLs have no :serviceId until parent resolves it — never send NaN
+    if (!Number.isFinite(serviceId) || serviceId <= 0) {
+      loading.value = false
+      return
+    }
     if (isReset) {
       paginationProps.value.current = 1
     }
@@ -359,6 +372,18 @@
     if (currTab.value != '2') return
     startPolling()
   })
+
+  // When opening via /services/:processId/config, serviceId arrives async from parent
+  watch(
+    () => payload.value[1],
+    (serviceId, prev) => {
+      if (currTab.value != '2') return
+      if (Number.isFinite(serviceId) && serviceId > 0 && serviceId !== prev) {
+        stopPolling()
+        startPolling(true, true)
+      }
+    }
+  )
 
   onDeactivated(() => {
     stopPolling()

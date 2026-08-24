@@ -18,6 +18,7 @@
 -->
 
 <script setup lang="ts">
+  import { message } from 'ant-design-vue'
   import { useServiceStore } from '@/store/service'
   import { useJobProgress } from '@/store/job-progress'
   import { Command, type CommandRequest } from '@/api/command/types'
@@ -51,7 +52,8 @@
 
   const componentPayload = computed(() => {
     const sid = resolvedServiceId.value ?? Number(route.params.serviceId)
-    return [clusterId.value, sid] as [number, number]
+    const serviceId = Number.isFinite(Number(sid)) ? Number(sid) : NaN
+    return [clusterId.value, serviceId] as [number, number]
   })
 
   const tabs = computed((): TabItem[] => [
@@ -97,9 +99,13 @@
   }
 
   const dropdownMenuClick: GroupItem['dropdownMenuClickEvent'] = async ({ key }) => {
-    const [cid, serviceId] = componentPayload.value
-    const service = serviceMap.value[cid]?.filter((s) => Number(serviceId) == s.id)[0] || serviceDetail.value
-    if (!service?.name) return
+    const [cid] = componentPayload.value
+    // Prefer loaded detail — process URLs have no :serviceId so payload can be NaN
+    const service = serviceDetail.value || serviceMap.value[cid]?.find((s) => s.id === resolvedServiceId.value)
+    if (!service?.name || !Number.isFinite(Number(service.id))) {
+      message.error(t('common.no_data'))
+      return
+    }
     const { name: serviceName, displayName } = service
 
     const processParams = {
@@ -126,6 +132,10 @@
         resolvedServiceId.value = detail.id
       } else {
         const [, serviceId] = componentPayload.value
+        if (!Number.isFinite(serviceId) || serviceId <= 0) {
+          message.error(t('common.no_data'))
+          return
+        }
         detail = await serviceStore.getServiceDetail(clusterId.value, serviceId)
         resolvedServiceId.value = detail.id
       }

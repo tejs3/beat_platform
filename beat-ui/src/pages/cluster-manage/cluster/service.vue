@@ -137,13 +137,19 @@
     if (payload.processGeneration) {
       router.push({
         name: 'ServiceConfigProcess',
-        params: { processId: String(payload.processGeneration) }
+        params: {
+          id: String(clusterId.value),
+          processId: String(payload.processGeneration)
+        }
       })
       return
     }
     router.push({
       name: 'ServiceDetail',
-      params: { serviceId: payload.id }
+      params: {
+        id: String(clusterId.value),
+        serviceId: String(payload.id)
+      }
     })
   }
 

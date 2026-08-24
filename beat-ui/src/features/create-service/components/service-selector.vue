@@ -53,7 +53,6 @@
     const svc = serviceStore.serviceFlatMap[sid] ?? serviceStore.serviceFlatMap[String(sid)]
     return svc?.name
   })
-  const checkIfInstalled = computed(() => selectedServices.value.filter((v) => !v.isInstalled).length === 0)
   const filterAddableData = computed(() =>
     isAddableData.value.filter(
       (v) =>
@@ -122,7 +121,7 @@
           acc[name!] = {
             ...item,
             hosts: [{ hostname, name: hostname, displayName: hostname }],
-            cardinality: stackStore.stackRelationMap?.components[item.name!].cardinality
+            cardinality: stackStore.stackRelationMap?.components?.[item.name!]?.cardinality
           }
         } else {
           acc[name!].hosts.push({ hostname, name: hostname, displayName: hostname })
@@ -176,28 +175,33 @@
     return detail as ExpandServiceVO
   }
 
-  const markSelectedAsInstalled = async (hasInstalled: boolean) => {
-    const { type, creationMode: mode } = stepContext.value
-
-    if (!hasInstalled) {
-      state.selectedData = [...selectedServices.value]
-      return
+  const resolveParcelAllowed = async (): Promise<Set<string>> => {
+    try {
+      const parcelSvcs = await listParcelServices()
+      const rows = Array.isArray(parcelSvcs) ? parcelSvcs : []
+      return new Set(
+        rows.map((s: any) => String(s.service || s.name || '').toLowerCase()).filter(Boolean)
+      )
+    } catch {
+      return new Set()
     }
+  }
 
+  const markSelectedAsInstalled = async () => {
+    const { type, creationMode: mode } = stepContext.value
     const installedServiceDetailMap = await initInstalledServicesDetail()
     const rawServices = mode === 'internal' ? excludeInfraServices.value : infraServices.value
     const inherentServices = rawServices.map((s) => ({ ...s }))
 
-    // Only services from the active BEAT parcel (not the Stacks catalog)
-    let allowed = new Set<string>()
-    try {
-      const parcelSvcs = await listParcelServices()
-      allowed = new Set(
-        parcelSvcs.map((s: any) => String(s.service || s.name || '').toLowerCase()).filter(Boolean)
-      )
-    } catch {
-      allowed = new Set()
+    if (inherentServices.length === 0) {
+      message.error('Stack catalog is empty. Refresh the page and try again.')
+      state.isAddableData = []
+      state.selectedData = []
+      return
     }
+
+    // Only services from the active BEAT parcel (not the full Stacks catalog)
+    const allowed = await resolveParcelAllowed()
     if (allowed.size === 0) {
       message.warning('Activate a BEAT parcel first (Parcels page), then add services.')
       state.isAddableData = []
@@ -210,6 +214,10 @@
 
     state.isAddableData = []
     state.selectedData = []
+
+    // Keep any in-progress picks (not yet installed) when re-entering this step
+    const pendingSelected = selectedServices.value.filter((v) => !v.isInstalled)
+    const pendingNames = new Set(pendingSelected.map((v) => v.name))
 
     if (type === 'component') {
       if (!targetServiceName.value) {
@@ -225,6 +233,9 @@
       state.isAddableData = []
     } else {
       for (const service of parcelFiltered) {
+        if (pendingNames.has(service.name)) {
+          continue
+        }
         const detail = installedServiceDetailMap.get(service.name || '')
 
         if (detail) {
@@ -235,21 +246,35 @@
           state.isAddableData.push(service as ExpandServiceVO)
         }
       }
+      for (const pending of pendingSelected) {
+        state.selectedData.push(pending)
+        state.isAddableData = state.isAddableData.filter((s) => s.name !== pending.name)
+      }
     }
 
     createStore.updateSelectedService(state.selectedData, true)
   }
 
+  let bootstrapGen = 0
   const bootstrap = async () => {
+    const gen = ++bootstrapGen
     spinning.value = true
     try {
-      const { clusterId, type } = stepContext.value
-      if (type === 'component' && clusterId != null) {
+      const { clusterId } = stepContext.value
+      // Stack catalog + installed services must be loaded before parcel filtering
+      await stackStore.loadStacks()
+      if (gen !== bootstrapGen) return
+      if (clusterId != null && Number(clusterId) >= 0) {
         await serviceStore.getServices(Number(clusterId))
       }
-      await markSelectedAsInstalled(checkIfInstalled.value)
+      if (gen !== bootstrapGen) return
+      await markSelectedAsInstalled()
+    } catch (e) {
+      if (gen !== bootstrapGen) return
+      console.error('Add Service bootstrap failed:', e)
+      message.error('Failed to load services. Refresh and try again.')
     } finally {
-      spinning.value = false
+      if (gen === bootstrapGen) spinning.value = false
     }
   }
 
