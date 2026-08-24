@@ -28,14 +28,14 @@
 
 ## 项目构建
 ```bash
-git clone https://github.com/apache/bigtop-manager.git
-cd bigtop-manager
+git clone https://github.com/apache/beat-platform.git
+cd beat-platform
 mvn clean package -DskipTests
 ```
 
 ## 系统安全配置
 ### 检测和关闭系统防火墙
-如果发现端口不通，可以试着关闭防火墙，确认是否是本机防火墙造成。如果是防火墙造成，可以根据配置的 bigtop-manager 各组件端口打开相应的端口通信。
+如果发现端口不通，可以试着关闭防火墙，确认是否是本机防火墙造成。如果是防火墙造成，可以根据配置的 beat-platform 各组件端口打开相应的端口通信。
 
 ```bash
 sudo systemctl stop firewalld.service

@@ -1,5 +1,5 @@
 # 发版
-本文档案例基于 Bigtop Manager 1.0.0 发版编写
+本文档案例基于 BEAT Platform 1.0.0 发版编写
 
 ## 准备工作
 如果这是您的第一次发版，您需要做以下准备工作
@@ -126,10 +126,10 @@ $ svn commit -m "Adding Zhiguo Wu's code signing key"
 现在我们获得了 Release Notes：https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311420&version=12354831
 
 ### 上传依赖包
-将 Bigtop/Infra/Extra Stack 服务软件包及对应的 Tools 软件包上传至 `repos.bigtop.apache.org`，获取对应的 URL：http://repos.bigtop.apache.org/releases/bigtop-manager/1.0.0
+将 Bigtop/Infra/Extra Stack 服务软件包及对应的 Tools 软件包上传至 `repos.bigtop.apache.org`，获取对应的 URL：http://repos.bigtop.apache.org/releases/beat-platform/1.0.0
 
 ### 更新 DDL 文件
-更新 `bigtop-manager-server/src/main/resources/ddl` 目录下的 `MySQL` 和 `PostgreSQL` 的 DDL 文件，将以下内容
+更新 `beat-server/src/main/resources/ddl` 目录下的 `MySQL` 和 `PostgreSQL` 的 DDL 文件，将以下内容
 ```sql
 INSERT INTO repo (name, arch, base_url, type)
 VALUES
@@ -140,8 +140,8 @@ VALUES
 ```sql
 INSERT INTO repo (name, arch, base_url, type)
 VALUES
-('Service tarballs', 'x86_64', 'http://repos.bigtop.apache.org/releases/bigtop-manager/1.0.0/'),
-('Service tarballs', 'aarch64', 'http://repos.bigtop.apache.org/releases/bigtop-manager/1.0.0/'),
+('Service tarballs', 'x86_64', 'http://repos.bigtop.apache.org/releases/beat-platform/1.0.0/'),
+('Service tarballs', 'aarch64', 'http://repos.bigtop.apache.org/releases/beat-platform/1.0.0/'),
 ```
 
 ### 升级版本号
@@ -150,7 +150,7 @@ VALUES
 $ git checkout -b branch-1.0
 $ mvn versions:set-property -Dproperty=revision -DnewVersion=1.0.0 -DgenerateBackupPoms=false
 $ git commit -m "BIGTOP-4129: Preparing for release 1.0.0"
-$ git tag release-1.0.0-rc0 -am "Bigtop Manager 1.0.0 RC0"
+$ git tag release-1.0.0-rc0 -am "BEAT Platform 1.0.0 RC0"
 
 # 直接推送至 Apache 仓库，操作时需谨慎
 $ git push upstream branch-1.0
@@ -162,22 +162,22 @@ $ git push upstream release-1.0.0-rc0
 ```shell
 $ mvn clean install -DskipTests
 ```
-编译完成后您便可从 `bigtop-manager-dist/target/apache-bigtop-manager-1.0.0-src.tar.gz` 获得源码包
+编译完成后您便可从 `beat-dist/target/apache-beat-platform-1.0.0-src.tar.gz` 获得源码包
 
 签名：
 ```shell
-$ gpg --armor --output apache-bigtop-manager-1.0.0-src.tar.gz.asc --detach-sig apache-bigtop-manager-1.0.0-src.tar.gz
-$ sha512sum apache-bigtop-manager-1.0.0-src.tar.gz > apache-bigtop-manager-1.0.0-src.tar.gz.sha512
+$ gpg --armor --output apache-beat-platform-1.0.0-src.tar.gz.asc --detach-sig apache-beat-platform-1.0.0-src.tar.gz
+$ sha512sum apache-beat-platform-1.0.0-src.tar.gz > apache-beat-platform-1.0.0-src.tar.gz.sha512
 ```
 
 ### 提交源码包及签名
 将三个文件同时提交至 SVN 的 Dev 仓库中
 ```shell
-$ mkdir -p ~/apache/dev/bigtop/bigtop-manager-1.0.0-RC0
-$ mv apache-bigtop-manager-1.0.0-src* ~/apache/dev/bigtop/bigtop-manager-1.0.0-RC0/
+$ mkdir -p ~/apache/dev/bigtop/beat-platform-1.0.0-RC0
+$ mv apache-beat-platform-1.0.0-src* ~/apache/dev/bigtop/beat-platform-1.0.0-RC0/
 $ cd ~/apache/dev/bigtop/
-$ svn add bigtop-manager-1.0.0-RC0
-$ svn commit -m "Preparing Release Bigtop Manager 1.0.0 RC0"
+$ svn add beat-platform-1.0.0-RC0
+$ svn commit -m "Preparing Release BEAT Platform 1.0.0 RC0"
 ```
 
 ### 发起投票
@@ -194,23 +194,23 @@ $ svn commit -m "Preparing Release Bigtop Manager 1.0.0 RC0"
 将源码包及签名文件移至 SVN 的 Release 仓库
 ```shell
 $ cd ~/apache/dev/bigtop/
-$ mkdir -p ~/apache/release/bigtop/bigtop-manager-1.0.0
-$ mv bigtop-manager-1.0.0-RC0/apache-bigtop-manager-1.0.0-src* ~/apache/release/bigtop/bigtop-manager-1.0.0/
+$ mkdir -p ~/apache/release/bigtop/beat-platform-1.0.0
+$ mv beat-platform-1.0.0-RC0/apache-beat-platform-1.0.0-src* ~/apache/release/bigtop/beat-platform-1.0.0/
 
 # 删除 Dev 下的 Release Candidate 目录
-$ svn delete bigtop-manager-1.0.0-RC0
-$ svn commit -m "Removing Release Bigtop Manager 1.0.0 RC0"
+$ svn delete beat-platform-1.0.0-RC0
+$ svn commit -m "Removing Release BEAT Platform 1.0.0 RC0"
 
 # 提交至正式 Release 仓库
 $ cd ~/apache/release/bigtop/
-$ svn add bigtop-manager-1.0.0
-$ svn commit -m "Committing Release Bigtop Manager 1.0.0"
+$ svn add beat-platform-1.0.0
+$ svn commit -m "Committing Release BEAT Platform 1.0.0"
 ```
 
 ### 更新 Git 仓库
 提交对应的 Tag 至远程仓库中，对应的 Commit Hash 通常与通过投票的 Release Candidate 一致
 ```shell
-$ git tag release-1.0.0 -am 'Bigtop Manager 1.0.0'
+$ git tag release-1.0.0 -am 'BEAT Platform 1.0.0'
 $ git push upstream release-1.0.0
 ```
 
@@ -246,8 +246,8 @@ $ git commit -m "BIGTOP-4129: Bump version to 1.1.0-SNAPSHOT"
 ```shell
 $ curl https://downloads.apache.org/bigtop/KEYS -o KEYS.bigtop
 $ gpg --import KEYS.bigtop
-$ gpg --verify apache-bigtop-manager-1.0.0-src.tar.gz.asc
-$ sha512sum --check apache-bigtop-manager-1.0.0-src.tar.gz.sha512
+$ gpg --verify apache-beat-platform-1.0.0-src.tar.gz.asc
+$ sha512sum --check apache-beat-platform-1.0.0-src.tar.gz.sha512
 ```
 
 ### License 校验
@@ -274,20 +274,20 @@ license-eye -c .licenserc.yaml dep check
 ### VOTE
 ```
 To: "Bigtop Developers List" <dev@bigtop.apache.org>
-Subject: [VOTE] Release Apache Bigtop Manager 1.0.0 RC0
+Subject: [VOTE] Release BEAT Platform 1.0.0 RC0
 
 Hello Community,
 
-This is a call for a vote to release Apache Bigtop Manager 1.0.0 RC0
+This is a call for a vote to release BEAT Platform 1.0.0 RC0
 
 Release note:
 https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311420&version=12354831
 
 The release candidates:
-https://dist.apache.org/repos/dist/dev/bigtop/bigtop-manager-1.0.0-RC0/
+https://dist.apache.org/repos/dist/dev/bigtop/beat-platform-1.0.0-RC0/
 
 Git tag for the release:
-https://github.com/apache/bigtop-manager/tree/release-1.0.0-rc0
+https://github.com/apache/beat-platform/tree/release-1.0.0-rc0
 
 Hash for the release tag:
 2ea1fd91062a52b983210e38f50667ce11b8ed23
@@ -310,11 +310,11 @@ Zhiguo Wu
 ### CANCEL
 ```
 To: "Bigtop Developers List" <dev@bigtop.apache.org>
-Subject: [CANCEL] [VOTE] Release Apache Bigtop Manager 1.0.0 RC0
+Subject: [CANCEL] [VOTE] Release BEAT Platform 1.0.0 RC0
 
 Hello Community,
 
-Due to some license issues, I'd like to cancel the vote for release Apache Bigtop Manager 1.0.0 RC0, the next vote for RC1 will be sent out in a few days.
+Due to some license issues, I'd like to cancel the vote for release BEAT Platform 1.0.0 RC0, the next vote for RC1 will be sent out in a few days.
 
 Best Regards,
 Zhiguo Wu
@@ -323,7 +323,7 @@ Zhiguo Wu
 ### RESULT
 ```
 To: "Bigtop Developers List" <dev@bigtop.apache.org>
-Subject: [RESULT] [VOTE] Release Apache Bigtop Manager 1.0.0 RC0
+Subject: [RESULT] [VOTE] Release BEAT Platform 1.0.0 RC0
 
 Hello Community,
 
@@ -346,14 +346,14 @@ Zhiguo Wu
 ### ANNOUNCE
 ```
 To: "Bigtop Developers List" <dev@bigtop.apache.org>
-Subject: [ANNOUNCE] Apache Bigtop Manager 1.0.0 Released
+Subject: [ANNOUNCE] BEAT Platform 1.0.0 Released
 
 Hello Community,
 
-I am glad to announce that Apache Bigtop Manager 1.0.0 has been released.
+I am glad to announce that BEAT Platform 1.0.0 has been released.
 
 The source release can be downloaded here:
-https://www.apache.org/dyn/closer.cgi/bigtop/bigtop-manager-1.0.0/
+https://www.apache.org/dyn/closer.cgi/bigtop/beat-platform-1.0.0/
 
 Detailed release notes can be checked here:
 https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311420&version=12354831

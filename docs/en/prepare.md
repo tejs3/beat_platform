@@ -28,14 +28,14 @@ Recommended versions:
 
 ## Build
 ```bash
-git clone https://github.com/apache/bigtop-manager.git
-cd bigtop-manager
+git clone https://github.com/apache/beat-platform.git
+cd beat-platform
 mvn clean package -DskipTests
 ```
 
 ## System
 ### Firewall
-If port connectivity issues occur, temporarily disable the firewall to confirm whether it is blocking traffic. Re-enable specific ports for bigtop-manager components if needed.
+If port connectivity issues occur, temporarily disable the firewall to confirm whether it is blocking traffic. Re-enable specific ports for beat-platform components if needed.
 
 ```bash
 sudo systemctl stop firewalld.service

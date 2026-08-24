@@ -32,7 +32,7 @@
 * Username：该主机上的用户
 * Authentication Method：认证方式，密码/密钥/无认证
 * Hostname：主机名，支持批量添加如 `host-0[1-2]`
-* Agent Path：Agent 安装的路径，若此处为 `/opt`，则 Agent 目录则为 `/opt/bigtop-manager-agent`
+* Agent Path：Agent 安装的路径，若此处为 `/opt`，则 Agent 目录则为 `/opt/beat-agent`
 * SSH Port：主机 SSHD 所使用的端口
 * GRPC Port：用户希望 Agent 的 gRPC 服务暴露的端口
 * Description：主机描述

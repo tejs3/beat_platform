@@ -18,7 +18,7 @@ set -e
 usage() {
     echo "usage: $PROG args"
     echo "  commands:"
-    echo "       -c NUM_INSTANCES, --create NUM_INSTANCES  - Create Docker containers based bigtop-manager cluster, defaults to 3"
+    echo "       -c NUM_INSTANCES, --create NUM_INSTANCES  - Create Docker containers based beat-platform cluster, defaults to 3"
     echo "       -e, --database                            - The specified database, defaults to postgres"
     echo "       -o, --os                                  - Specify the operating system, default is rocky-8"
     echo "       --skip-compile                            - Skip Compile"
@@ -46,12 +46,12 @@ init_jwt_secret() {
 build() {
     log "Build on docker: $SKIP_COMPILE"
     if ! $SKIP_COMPILE; then
-      log "Compiling bigtop-manager"
+      log "Compiling beat-platform"
       docker run -it --rm -u $(id -u):$(id -g) \
-        -v $PWD/../../../:/opt/develop/bigtop-manager/ \
+        -v $PWD/../../../:/opt/develop/beat-platform/ \
         -v /$USER/.m2:/$USER/.m2 \
-        -w /opt/develop/bigtop-manager \
-        bigtop-manager/develop:${OS} bash -c "mvn clean package -DskipTests"
+        -w /opt/develop/beat-platform \
+        beat-platform/develop:${OS} bash -c "mvn clean package -DskipTests"
     else
       log "Skip Compile!!!"
     fi
@@ -60,14 +60,14 @@ build() {
 
 destroy() {
   log "Destroy Containers!!!"
-  docker rm -f $(docker ps -aq --filter network=bigtop-manager --filter "name=^bm-")
+  docker rm -f $(docker ps -aq --filter network=beat-platform --filter "name=^bm-")
   exit 0
 }
 
 create() {
   log "Create Containers!!!"
   init_jwt_secret
-  docker network inspect bigtop-manager >/dev/null 2>&1 || docker network create --driver bridge bigtop-manager
+  docker network inspect beat-platform >/dev/null 2>&1 || docker network create --driver bridge beat-platform
   create_db
   create_container
 }
@@ -80,18 +80,18 @@ create_container() {
     if [ $i -eq 1 ]; then
       docker run -itd -p 15005:5005 -p 15006:5006 -p 18080:8080 \
         -e BIGTOP_MANAGER_JWT_SECRET="${BIGTOP_MANAGER_JWT_SECRET}" \
-        --name ${container_name} --hostname ${container_name} --network bigtop-manager --cap-add=SYS_TIME bigtop-manager/develop:${OS}
-      docker cp ../../../bigtop-manager-dist/target/apache-bigtop-manager-*-server.tar.gz ${container_name}:/opt/bigtop-manager-server.tar.gz
-      docker exec ${container_name} bash -c "cd /opt && tar -zxvf bigtop-manager-server.tar.gz"
+        --name ${container_name} --hostname ${container_name} --network beat-platform --cap-add=SYS_TIME beat-platform/develop:${OS}
+      docker cp ../../../beat-dist/target/apache-beat-platform-*-server.tar.gz ${container_name}:/opt/beat-server.tar.gz
+      docker exec ${container_name} bash -c "cd /opt && tar -zxvf beat-server.tar.gz"
       docker exec ${container_name} bash -c "ssh-keygen -f '/root/.ssh/id_rsa' -N '' -t rsa"
       SERVER_PUB_KEY=`docker exec ${container_name} /bin/cat /root/.ssh/id_rsa.pub`
     else
       docker run -itd \
         -e BIGTOP_MANAGER_JWT_SECRET="${BIGTOP_MANAGER_JWT_SECRET}" \
-        --name ${container_name} --hostname ${container_name} --network bigtop-manager --cap-add=SYS_TIME bigtop-manager/develop:${OS}
+        --name ${container_name} --hostname ${container_name} --network beat-platform --cap-add=SYS_TIME beat-platform/develop:${OS}
     fi
 
-    docker cp ../../../bigtop-manager-dist/target/apache-bigtop-manager-*-agent.tar.gz ${container_name}:/opt/bigtop-manager-agent.tar.gz
+    docker cp ../../../beat-dist/target/apache-beat-platform-*-agent.tar.gz ${container_name}:/opt/beat-agent.tar.gz
     docker exec ${container_name} bash -c "mkdir -p /root/.ssh && echo '$SERVER_PUB_KEY' > /root/.ssh/authorized_keys"
     docker exec ${container_name} ssh-keygen -N '' -t rsa -b 2048 -f /etc/ssh/ssh_host_rsa_key
     docker exec ${container_name} ssh-keygen -N '' -t ecdsa -b 256 -f /etc/ssh/ssh_host_ecdsa_key
@@ -100,7 +100,7 @@ create_container() {
     docker exec ${container_name} bash -c "systemctl start chronyd && chronyc tracking"
   done
 
-  containers=($(docker network inspect bigtop-manager -f '{{range .Containers}}{{.Name}}{{" "}}{{end}}'))
+  containers=($(docker network inspect beat-platform -f '{{range .Containers}}{{.Name}}{{" "}}{{end}}'))
   for container in ${containers[@]}; do
     container_ip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $container)
     log "container: ${container}; container_ip: ${container_ip}"
@@ -117,24 +117,24 @@ create_container() {
       if [ $DATABASE == "mysql" ]; then
         log "docker exec ${container} bash -c \"mysql -h bm-mysql -P 3306 -uroot -proot -e 'create database bigtop_manager'\""
         docker exec ${container} bash -c "mysql -h bm-mysql -P 3306 -uroot -proot -e 'create database bigtop_manager'"
-        docker exec ${container} bash -c "mysql -h bm-mysql -P 3306 -uroot -proot -Dbigtop_manager < /opt/bigtop-manager-server/ddl/MySQL-DDL-CREATE.sql"
+        docker exec ${container} bash -c "mysql -h bm-mysql -P 3306 -uroot -proot -Dbigtop_manager < /opt/beat-server/ddl/MySQL-DDL-CREATE.sql"
 
-        docker exec ${container} bash -c "wget https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar -O /opt/bigtop-manager-server/libs/mysql-connector-java-8.0.33.jar"
-        docker exec ${container} bash -c "sed -i 's/org.postgresql.Driver/com.mysql.cj.jdbc.Driver/' /opt/bigtop-manager-server/conf/application.yml"
-        docker exec ${container} bash -c "sed -i 's/postgresql/mysql/' /opt/bigtop-manager-server/conf/application.yml"
-        docker exec ${container} bash -c "sed -i 's/localhost:5432/bm-mysql:3306/' /opt/bigtop-manager-server/conf/application.yml"
-        docker exec ${container} bash -c "sed -i 's/postgres/root/' /opt/bigtop-manager-server/conf/application.yml"
+        docker exec ${container} bash -c "wget https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar -O /opt/beat-server/libs/mysql-connector-java-8.0.33.jar"
+        docker exec ${container} bash -c "sed -i 's/org.postgresql.Driver/com.mysql.cj.jdbc.Driver/' /opt/beat-server/conf/application.yml"
+        docker exec ${container} bash -c "sed -i 's/postgresql/mysql/' /opt/beat-server/conf/application.yml"
+        docker exec ${container} bash -c "sed -i 's/localhost:5432/bm-mysql:3306/' /opt/beat-server/conf/application.yml"
+        docker exec ${container} bash -c "sed -i 's/postgres/root/' /opt/beat-server/conf/application.yml"
       elif [ $DATABASE == "postgres" ]; then
         docker exec ${container} bash -c "PGPASSWORD=postgres psql -h bm-postgres -p5432 -U postgres -c 'create database bigtop_manager'"
-        docker exec ${container} bash -c "PGPASSWORD=postgres psql -h bm-postgres -p5432 -U postgres -d bigtop_manager -f /opt/bigtop-manager-server/ddl/PostgreSQL-DDL-CREATE.sql"
-        docker exec ${container} bash -c "sed -i 's/localhost:5432/bm-postgres:5432/' /opt/bigtop-manager-server/conf/application.yml"
+        docker exec ${container} bash -c "PGPASSWORD=postgres psql -h bm-postgres -p5432 -U postgres -d bigtop_manager -f /opt/beat-server/ddl/PostgreSQL-DDL-CREATE.sql"
+        docker exec ${container} bash -c "sed -i 's/localhost:5432/bm-postgres:5432/' /opt/beat-server/conf/application.yml"
       fi
 
       # Inject JWT secret into server config inside container (for environments where env vars are not propagated)
-      docker exec ${container} bash -c "grep -q '^\s*secret:' /opt/bigtop-manager-server/conf/application.yml || true"
-      docker exec ${container} bash -c "sed -i 's/^\(\s*secret:\).*/\1 \${BIGTOP_MANAGER_JWT_SECRET}/' /opt/bigtop-manager-server/conf/application.yml || true"
+      docker exec ${container} bash -c "grep -q '^\s*secret:' /opt/beat-server/conf/application.yml || true"
+      docker exec ${container} bash -c "sed -i 's/^\(\s*secret:\).*/\1 \${BIGTOP_MANAGER_JWT_SECRET}/' /opt/beat-server/conf/application.yml || true"
 
-      docker exec ${container} bash -c "nohup /bin/bash /opt/bigtop-manager-server/bin/server.sh start --debug > /dev/null 2>&1 &"
+      docker exec ${container} bash -c "nohup /bin/bash /opt/beat-server/bin/server.sh start --debug > /dev/null 2>&1 &"
     fi
     log "All Service Started!!!"
   done
@@ -146,7 +146,7 @@ create_db() {
     docker run --restart=always -it -d \
        -p 13306:3306 \
        --cap-add=SYS_TIME \
-       --network bigtop-manager \
+       --network beat-platform \
        --name bm-mysql \
        --hostname bm-mysql \
        -e MYSQL_ROOT_PASSWORD=root \
@@ -170,7 +170,7 @@ create_db() {
   elif [ $DATABASE == "postgres" ]; then
     docker run --restart=always -d \
       -p 15432:5432 \
-      --network bigtop-manager \
+      --network beat-platform \
       --name bm-postgres \
       --hostname bm-postgres \
     	-e POSTGRES_PASSWORD=postgres \

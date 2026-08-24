@@ -34,7 +34,7 @@ When adding a host, the following information needs to be filled in:
 - **Username**: The user on the host.
 - **Authentication Method**: Authentication method (password/key/no authentication).
 - **Hostname**: Hostname, supporting batch addition such as `host-0[1-2]`.
-- **Agent Path**: The path where the Agent is installed. If this is `/opt`, the Agent directory will be `/opt/bigtop-manager-agent`.
+- **Agent Path**: The path where the Agent is installed. If this is `/opt`, the Agent directory will be `/opt/beat-agent`.
 - **SSH Port**: The port used by the host's SSHD.
 - **GRPC Port**: The port where the Agent's gRPC service is exposed as desired by the user.
 - **Description**: Host description.

@@ -2,16 +2,16 @@
 ## 安装包部署
 ```bash
 # 解压安装包（注意正确解压参数）
-tar zxvf apache-bigtop-manager-1.0.0-SNAPSHOT-server.tar.gz -C /opt
+tar zxvf apache-beat-platform-1.0.0-SNAPSHOT-server.tar.gz -C /opt
 
 # 进入部署目录
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 ```
 
 ## 配置文件修改
 ```bash
 # 进入部署目录
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # 修改配置文件（替换所有占位符）
 sed -e "s|org.postgresql.Driver|com.mysql.cj.jdbc.Driver|g" \
@@ -45,7 +45,7 @@ FLUSH PRIVILEGES;
 ## 数据库初始化
 ```bash
 # 进入部署目录
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # 执行DDL脚本（注意密码参数格式）
 mysql -h YOUR_MYSQL_IP -P 3306 -u YOUR_USER_NAME -pYOUR_PASSWORD < ddl/MySQL-DDL-CREATE.sql
@@ -54,7 +54,7 @@ mysql -h YOUR_MYSQL_IP -P 3306 -u YOUR_USER_NAME -pYOUR_PASSWORD < ddl/MySQL-DDL
 ## 下载MySQL驱动
 ```bash
 # 进入部署目录
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # 或官方源
 wget https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar -O libs/mysql-connector-j-8.0.33.jar
@@ -66,7 +66,7 @@ wget https://maven.aliyun.com/repository/central/com/mysql/mysql-connector-j/8.0
 ## 启动服务
 ```bash
 # 进入部署目录
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # 启动服务
 ./bin/server.sh start

@@ -16,9 +16,9 @@
 
 ## 设置
 ### 获取代码
-首先，您需要通过以下命令从 GitHub 中拉取 Bigtop Manager 源码:
+首先，您需要通过以下命令从 GitHub 中拉取 BEAT Platform 源码:
 
-`git clone git@github.com:apache/bigtop-manager.git`
+`git clone git@github.com:apache/beat-platform.git`
 
 ### 编译
 获取代码后，部分依赖需要先编译项目才能使用，否则会报错，请运行以下命令:
@@ -26,9 +26,9 @@
 `./mvnw clean install -DskipTests`
 
 ### 初始化
-首先您需要初始化您的数据库，数据库文件在 `bigtop-manager-server/src/main/resources/ddl/` 目录下，请使用对应的脚本来初始化您的数据库，目前仅支持 `Postgres` 以及 `MySQL`
+首先您需要初始化您的数据库，数据库文件在 `beat-server/src/main/resources/ddl/` 目录下，请使用对应的脚本来初始化您的数据库，目前仅支持 `Postgres` 以及 `MySQL`
 
-并且在 `bigtop-manager-server/src/main/resources/application.yml` 文件中修改您的数据库信息
+并且在 `beat-server/src/main/resources/application.yml` 文件中修改您的数据库信息
 
 ### 开发
 在编译完项目后您就可以开始开发了
@@ -38,7 +38,7 @@
 针对 Vue 项目，请运行如下命令:
 
 ```
-cd bigtop-manager-ui
+cd beat-ui
 pnpm dev
 ```
 
@@ -64,16 +64,16 @@ pnpm dev
 # 模块及功能
 | 模块                        | 介绍                                              | 
 |---------------------------|-------------------------------------------------|
-| **bigtop-manager-agent**  | 会被安装到每台主机上，对每台主机上的服务进行管理                        |
-| **bigtop-manager-ai**     | 包含一些 AI 助手相关的代码                                 |
-| **bigtop-manager-bom**    | 定义了项目中所有依赖及其版本                                  |
-| **bigtop-manager-common** | 一些公共工具类                                         |
-| **bigtop-manager-dao**    | 与数据库进行交互                                        |
-| **bigtop-manager-dist**   | 打包后的内容会放在该模块下，包括 `Server` 和 `Agent` 的 tar 包     |
-| **bigtop-manager-grpc**   | Server 应用与 Agent 应用通过 gRPC 交互，该模块包含所有 gRPC 服务定义 |
-| **bigtop-manager-server** | 管理端的主要代码                                        |
-| **bigtop-manager-stack**  | 包含各个组件栈中的组件及其操作脚本                               |
-| **bigtop-manager-ui**     | 前端代码                                            |
+| **beat-agent**  | 会被安装到每台主机上，对每台主机上的服务进行管理                        |
+| **beat-ai**     | 包含一些 AI 助手相关的代码                                 |
+| **beat-bom**    | 定义了项目中所有依赖及其版本                                  |
+| **beat-common** | 一些公共工具类                                         |
+| **beat-dao**    | 与数据库进行交互                                        |
+| **beat-dist**   | 打包后的内容会放在该模块下，包括 `Server` 和 `Agent` 的 tar 包     |
+| **beat-grpc**   | Server 应用与 Agent 应用通过 gRPC 交互，该模块包含所有 gRPC 服务定义 |
+| **beat-server** | 管理端的主要代码                                        |
+| **beat-stack**  | 包含各个组件栈中的组件及其操作脚本                               |
+| **beat-ui**     | 前端代码                                            |
 
 # 贡献流程
 ## 代码规范
@@ -86,7 +86,7 @@ Java:
 
 Vue:
 ```
-cd bigtop-manager-ui
+cd beat-ui
 pnpm prettier
 ```
 
@@ -100,13 +100,13 @@ Java:
 
 Vue:
 ```
-./mvnw -pl bigtop-manager-ui test
+./mvnw -pl beat-ui test
 ```
 
 ## 提交代码
 1、在 GitHub 上 Fork 该项目
 
-2、在本地克隆你 Fork 的仓库，如 `git clone git@github.com:your-username/bigtop-manager.git`
+2、在本地克隆你 Fork 的仓库，如 `git clone git@github.com:your-username/beat-platform.git`
 
 3、创建本地分支，如 `git checkout -b your-branch-name`
 

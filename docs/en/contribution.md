@@ -19,9 +19,9 @@
 ## Setup
 
 ### Get the Code
-First, you need to pull the Bigtop Manager source code from GitHub using the following command:
+First, you need to pull the BEAT Platform source code from GitHub using the following command:
 
-`git clone git@github.com:apache/bigtop-manager.git`
+`git clone git@github.com:apache/beat-platform.git`
 
 ### Compile
 After getting the code, some dependencies require you to compile the project first before you can use them; otherwise, an error will occur. Please run the following command:
@@ -29,9 +29,9 @@ After getting the code, some dependencies require you to compile the project fir
 `./mvnw clean install -DskipTests`
 
 ### Initialize
-First, you need to initialize your database. The database files are in the `bigtop-manager-server/src/main/resources/ddl/` directory. Please use the corresponding scripts to initialize your database. Currently, only `Postgres` and `MySQL` are supported.
+First, you need to initialize your database. The database files are in the `beat-server/src/main/resources/ddl/` directory. Please use the corresponding scripts to initialize your database. Currently, only `Postgres` and `MySQL` are supported.
 
-And modify your database information in the `bigtop-manager-server/src/main/resources/application.yml` file.
+And modify your database information in the `beat-server/src/main/resources/application.yml` file.
 
 ### Development
 After compiling the project, you can start development.
@@ -41,7 +41,7 @@ For Java projects, you can directly use the `Debug` feature of Intellij IDEA.
 For Vue projects, please run the following commands:
 
 ```
-cd bigtop-manager-ui
+cd beat-ui
 pnpm dev
 ```
 
@@ -67,16 +67,16 @@ Users can enable it through the following method:
 # Modules and Functions
 | Module                    | Introduction                                                                                                               | 
 |---------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| **bigtop-manager-agent**  | It will be installed on each host to manage the services on each host.                                                     |
-| **bigtop-manager-ai**     | It contains some code related to the AI assistant.                                                                         |
-| **bigtop-manager-bom**    | It defines all the dependencies and their versions in the project.                                                         |
-| **bigtop-manager-common** | It contains some common utility classes.                                                                                   |
-| **bigtop-manager-dao**    | It interacts with the database.                                                                                            |
-| **bigtop-manager-dist**   | The packaged content will be placed in this module, including the tar packages of `Server` and `Agent`.                    |
-| **bigtop-manager-grpc**   | The Server application and the Agent application interact through gRPC. This module contains all gRPC service definitions. |
-| **bigtop-manager-server** | It is the main code of the management end.                                                                                 |
-| **bigtop-manager-stack**  | It contains the components and their operation scripts in each component stack.                                            |
-| **bigtop-manager-ui**     | It is the front - end code.                                                                                                |
+| **beat-agent**  | It will be installed on each host to manage the services on each host.                                                     |
+| **beat-ai**     | It contains some code related to the AI assistant.                                                                         |
+| **beat-bom**    | It defines all the dependencies and their versions in the project.                                                         |
+| **beat-common** | It contains some common utility classes.                                                                                   |
+| **beat-dao**    | It interacts with the database.                                                                                            |
+| **beat-dist**   | The packaged content will be placed in this module, including the tar packages of `Server` and `Agent`.                    |
+| **beat-grpc**   | The Server application and the Agent application interact through gRPC. This module contains all gRPC service definitions. |
+| **beat-server** | It is the main code of the management end.                                                                                 |
+| **beat-stack**  | It contains the components and their operation scripts in each component stack.                                            |
+| **beat-ui**     | It is the front - end code.                                                                                                |
 
 # Contribution Process
 
@@ -90,7 +90,7 @@ Java:
 
 Vue:
 ```
-cd bigtop-manager-ui
+cd beat-ui
 pnpm prettier
 ```
 
@@ -104,12 +104,12 @@ Java:
 
 Vue:
 ```
-./mvnw -pl bigtop-manager-ui test
+./mvnw -pl beat-ui test
 ```
 
 ## Submit Code
 1. Fork the project on GitHub.
-2. Clone your Forked repository locally, e.g., `git clone git@github.com:your-username/bigtop-manager.git`.
+2. Clone your Forked repository locally, e.g., `git clone git@github.com:your-username/beat-platform.git`.
 3. Create a local branch, e.g., `git checkout -b your-branch-name`.
 4. Commit your code to that branch and push the branch to your Forked repository on GitHub.
 5. Create a Pull Request, ensuring that the Title follows the [Conventional Commits Specification](https://www.conventionalcommits.org/).

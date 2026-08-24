@@ -1,34 +1,37 @@
 <div align="center">
-<h1>Apache Bigtop Manager</h1>
-
-[![GitHub Forks](https://img.shields.io/github/forks/apache/bigtop-manager)](https://github.com/apache/bigtop-manager/forks)
-[![GitHub Stars](https://img.shields.io/github/stars/apache/bigtop-manager)](https://github.com/apache/bigtop-manager/stargazers)
-
-![GitHub branch check runs](https://img.shields.io/github/check-runs/apache/bigtop-manager/main)
-[![HitCount](https://views.whatilearened.today/views/github/apache/bigtop-manager.svg)](https://github.com/apache/bigtop-manager)
-[![Commits](https://img.shields.io/github/commit-activity/m/apache/bigtop-manager/main)](https://github.com/apache/bigtop-manager/commits/main)
-[![Contributors](https://img.shields.io/github/contributors/apache/bigtop-manager)](https://github.com/apache/bigtop-manager/graphs/contributors)
-[![License](https://img.shields.io/github/license/apache/bigtop-manager)](https://github.com/apache/bigtop-manager/LICENSE)
-
-<b>✨ A new generation of bigdata cluster management platform ✨</b>
+<h1>BEAT Platform</h1>
+<p><b>UI · Server · Agent for BEAT clusters</b></p>
 </div>
 
-## Introduction
-Bigtop Manager is a modern, AI-driven web application designed to simplify the complexity of bigdata cluster management.
+## Modules
 
-Provides an easy deployment solution not only for Apache Bigtop components, but also other community version bigdata components.
+| Module | Role |
+|--------|------|
+| `beat-ui` | Web UI |
+| `beat-server` | Manager API |
+| `beat-agent` | Host agent |
+| `beat-stack` | Service scripts (BEAT 3.3.0) |
+| `beat-common` / `beat-dao` / `beat-grpc` / `beat-ai` / `beat-bom` | Shared libs |
 
-## Documents
-See [Documents](./docs).
+## Parcels
 
-## Stargazers
-![Stargazers](https://starchart.cc/apache/bigtop-manager.svg)
+Not stored here (too large). Use:
 
-## Code of Conduct
-Participate in this project in accordance with the Contributor Covenant [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
+- https://github.com/tejs3/beat-repo3.0.0-1/releases
+- or your lab `/ui/repo/` mirror
 
-## Contributors
-We appreciate all developers for their contributions. See the [List Of Contributors](https://github.com/apache/bigtop-manager/graphs/contributors).
+## Build
+
+```bash
+./mvnw clean package -DskipTests
+```
+
+```powershell
+.\mvnw.cmd clean package -DskipTests
+```
+
+Requires **JDK 17+** and **Node.js** (UI).
 
 ## License
-[Apache 2.0 License](LICENSE)
+
+Apache-2.0. Derived from Apache Bigtop Manager; product name is **BEAT**.

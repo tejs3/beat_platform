@@ -17,8 +17,8 @@
   ~ under the License.
 -->
 
-## Build and install Bigtop Manager by dev-support
-Dev support is used to quickly develop and test bigtop-manager, which runs on the docker containers.
+## Build and install BEAT Platform by dev-support
+Dev support is used to quickly develop and test beat-platform, which runs on the docker containers.
 Following steps are based on RockyLinux-8.
 
 ### **Step 1**: Install build tools: Git、Docker
@@ -28,20 +28,20 @@ The scripts require docker to be installed, since the compile process will run i
 ```shell
 yum install -y git docker
 ```
-### **Step 2**: Download Bigtop Manager source
+### **Step 2**: Download BEAT Platform source
 ```shell
-git clone https://github.com/apache/bigtop-manager.git
+git clone https://github.com/apache/beat-platform.git
 ```
 
 ### **Step 3**: Build develop basic image
-Run the setup command, you will get `bigtop-manager/develop:rocky-8` image. It has the environment needed to compile Bigtop-Manager and run servers such as Bigtop-Manager Server, Bigtop-Manager Agent, Mysql, etc.
+Run the setup command, you will get `beat-platform/develop:rocky-8` image. It has the environment needed to compile Bigtop-Manager and run servers such as Bigtop-Manager Server, Bigtop-Manager Agent, Mysql, etc.
 
 **RHEL (Rocky 8) :**
 ```shell
 /bin/bash dev-support/docker/image/build.sh rocky-8
 ```
 ### **Step 4**: Build source & create cluster
-* Bigtop Manager UI、Bigtop Manager Server Debug Port、MariaDB Server are also exposed to local ports: 18080、15005、13306.
+* BEAT Platform UI、BEAT Platform Server Debug Port、MariaDB Server are also exposed to local ports: 18080、15005、13306.
 * Docker hostnames are: bm-1、bm-2、bm-3 and etc.
 
 **RHEL (Rocky 8) :**

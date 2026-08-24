@@ -31,7 +31,7 @@ cd $BIN_DIR
 echo $PWD
 
 if [ $# != 1 ]; then
-  echo "Creates bigtop-manager/develop image"
+  echo "Creates beat-platform/develop image"
   echo
   echo "Usage: build.sh <OS-VERSION>"
   echo
@@ -63,4 +63,4 @@ case ${OS}-${VERSION_INT} in
         exit 1
 esac
 
-docker build --rm --no-cache -t bigtop-manager/develop:${OS}-${VERSION} -f ${DOCKERFILE} ../..
+docker build --rm --no-cache -t beat-platform/develop:${OS}-${VERSION} -f ${DOCKERFILE} ../..

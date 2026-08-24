@@ -2,16 +2,16 @@
 ## Package Deployment
 ```bash
 # Extract the installation package (note correct extraction parameters)
-tar zxvf apache-bigtop-manager-1.0.0-SNAPSHOT-server.tar.gz -C /opt
+tar zxvf apache-beat-platform-1.0.0-SNAPSHOT-server.tar.gz -C /opt
 
 # Enter deployment directory
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 ```
 
 ## Configuration
 ```bash
 # Enter deployment directory
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # Modify configuration file (replace all placeholders)
 sed -e "s|org.postgresql.Driver|com.mysql.cj.jdbc.Driver|g" \
@@ -45,7 +45,7 @@ FLUSH PRIVILEGES;
 ## Initialize Database
 ```bash
 # Enter deployment directory
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # Execute DDL script (note password parameter format)
 mysql -h YOUR_MYSQL_IP -P 3306 -u YOUR_USER_NAME -pYOUR_PASSWORD < ddl/MySQL-DDL-CREATE.sql
@@ -54,7 +54,7 @@ mysql -h YOUR_MYSQL_IP -P 3306 -u YOUR_USER_NAME -pYOUR_PASSWORD < ddl/MySQL-DDL
 ## Download MySQL Driver
 ```bash
 # Enter deployment directory
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # Official repository
 wget https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar -O libs/mysql-connector-j-8.0.33.jar
@@ -66,7 +66,7 @@ wget https://maven.aliyun.com/repository/central/com/mysql/mysql-connector-j/8.0
 ## Start Service
 ```bash
 # Enter deployment directory
-cd /opt/bigtop-manager-server
+cd /opt/beat-server
 
 # Start service
 ./bin/server.sh start

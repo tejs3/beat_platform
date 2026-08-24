@@ -26,23 +26,23 @@
         <version>29</version>
     </parent>
 
-    <groupId>org.apache.bigtop</groupId>
-    <artifactId>bigtop-manager</artifactId>
+    <groupId>io.beat</groupId>
+    <artifactId>beat-platform</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>
     <name>${project.artifactId}</name>
-    <description>Bigtop Manager Parent</description>
+    <description>BEAT Platform Parent</description>
 
     <modules>
-        <module>bigtop-manager-agent</module>
-        <module>bigtop-manager-bom</module>
-        <module>bigtop-manager-common</module>
-        <module>bigtop-manager-server</module>
-        <module>bigtop-manager-stack</module>
-        <module>bigtop-manager-ui</module>
-        <module>bigtop-manager-dao</module>
-        <module>bigtop-manager-grpc</module>
-        <module>bigtop-manager-ai</module>
+        <module>beat-agent</module>
+        <module>beat-bom</module>
+        <module>beat-common</module>
+        <module>beat-server</module>
+        <module>beat-stack</module>
+        <module>beat-ui</module>
+        <module>beat-dao</module>
+        <module>beat-grpc</module>
+        <module>beat-ai</module>
     </modules>
 
     <properties>
@@ -84,56 +84,56 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-common</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-dao</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-dao</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-grpc</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-grpc</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-stack-core</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-stack-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-stack-bigtop</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-stack-services</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-stack-infra</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-stack-infra</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-stack-extra</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-stack-extra</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-ui</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-ui</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
-                <groupId>org.apache.bigtop</groupId>
-                <artifactId>bigtop-manager-ai</artifactId>
+                <groupId>io.beat</groupId>
+                <artifactId>beat-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -378,7 +378,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <modules>
-                <module>bigtop-manager-dist</module>
+                <module>beat-dist</module>
             </modules>
         </profile>
     </profiles>

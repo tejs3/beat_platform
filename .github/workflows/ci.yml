@@ -60,7 +60,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           cache: 'maven'
-      - run: ./mvnw -pl bigtop-manager-ui test
+      - run: ./mvnw -pl beat-ui test
 
   build:
     name: "Build project"
