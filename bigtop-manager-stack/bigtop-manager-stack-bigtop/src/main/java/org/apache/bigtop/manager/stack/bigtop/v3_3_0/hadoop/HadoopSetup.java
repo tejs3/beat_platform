@@ -1,0 +1,394 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *    https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.bigtop.manager.stack.bigtop.v3_3_0.hadoop;
+
+import org.apache.bigtop.manager.common.constants.Constants;
+import org.apache.bigtop.manager.common.shell.ShellResult;
+import org.apache.bigtop.manager.stack.core.enums.ConfigType;
+import org.apache.bigtop.manager.stack.core.exception.StackException;
+import org.apache.bigtop.manager.stack.core.spi.param.Params;
+import org.apache.bigtop.manager.stack.core.utils.LocalSettings;
+import org.apache.bigtop.manager.stack.core.utils.linux.LinuxFileUtils;
+import org.apache.bigtop.manager.stack.core.utils.linux.LinuxOSUtils;
+
+import org.apache.commons.lang3.StringUtils;
+
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+@Slf4j
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class HadoopSetup {
+
+    public static ShellResult configure(Params params) {
+        return configure(params, null);
+    }
+
+    public static ShellResult configure(Params params, String componentName) {
+        log.info("Configuring Hadoop");
+        HadoopParams hadoopParams = (HadoopParams) params;
+
+        String confDir = hadoopParams.confDir();
+        String hadoopUser = hadoopParams.user();
+        String hadoopGroup = hadoopParams.group();
+        Map<String, Object> hadoopEnv = hadoopParams.hadoopEnv();
+        Map<String, Object> yarnEnv = hadoopParams.yarnEnv();
+        Map<String, Object> mapredEnv = hadoopParams.mapredEnv();
+
+        if (StringUtils.isNotBlank(componentName)) {
+            switch (componentName) {
+                case "namenode":
+                case "hdfs_namenode": {
+                    LinuxFileUtils.createDirectories(
+                            hadoopParams.getDfsNameNodeDir(), hadoopUser, hadoopGroup, Constants.PERMISSION_755, true);
+                    LinuxFileUtils.createDirectories(
+                            hadoopParams.getDfsNameNodeCheckPointDir(),
+                            hadoopUser,
+                            hadoopGroup,
+                            Constants.PERMISSION_755,
+                            true);
+                    break;
+                }
+                case "secondarynamenode":
+                case "hdfs_secondarynamenode": {
+                    LinuxFileUtils.createDirectories(
+                            hadoopParams.getDfsNameNodeCheckPointDir(),
+                            hadoopUser,
+                            hadoopGroup,
+                            Constants.PERMISSION_755,
+                            true);
+                    break;
+                }
+                case "journalnode":
+                case "hdfs_journalnode": {
+                    if (StringUtils.isNotBlank(hadoopParams.getDfsJourNalNodeDir())) {
+                        LinuxFileUtils.createDirectories(
+                                hadoopParams.getDfsJourNalNodeDir(),
+                                hadoopUser,
+                                hadoopGroup,
+                                Constants.PERMISSION_755,
+                                true);
+                    }
+                    break;
+                }
+                case "datanode":
+                case "hdfs_datanode": {
+                    if (StringUtils.isNotBlank(hadoopParams.getDfsDomainSocketPathPrefix())) {
+                        LinuxFileUtils.createDirectories(
+                                hadoopParams.getDfsDomainSocketPathPrefix(),
+                                hadoopUser,
+                                hadoopGroup,
+                                Constants.PERMISSION_755,
+                                true);
+                    }
+                    if (StringUtils.isNotBlank(hadoopParams.getDfsDataDir())) {
+                        String[] dfsDataDirs = hadoopParams.getDfsDataDir().split("\\s*,\\s*");
+                        for (String dir : dfsDataDirs) {
+                            LinuxFileUtils.createDirectories(
+                                    dir, hadoopUser, hadoopGroup, Constants.PERMISSION_755, true);
+                        }
+                    }
+                    break;
+                }
+                case "nodemanager":
+                case "yarn_nodemanager": {
+                    if (StringUtils.isNotBlank(hadoopParams.getNodeManagerLogDir())) {
+                        String[] nmLogDirs = hadoopParams.getNodeManagerLogDir().split("\\s*,\\s*");
+                        for (String dir : nmLogDirs) {
+                            LinuxFileUtils.createDirectories(
+                                    dir, hadoopUser, hadoopGroup, Constants.PERMISSION_755, true);
+                        }
+                    }
+                    if (StringUtils.isNotBlank(hadoopParams.getNodeManagerLocalDir())) {
+                        String[] nmLocalDirs =
+                                hadoopParams.getNodeManagerLocalDir().split("\\s*,\\s*");
+                        for (String dir : nmLocalDirs) {
+                            LinuxFileUtils.createDirectories(
+                                    dir, hadoopUser, hadoopGroup, Constants.PERMISSION_755, true);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        // mkdir directories
+        LinuxFileUtils.createDirectories(
+                hadoopParams.getHadoopLogDir(), hadoopUser, hadoopGroup, Constants.PERMISSION_755, true);
+        LinuxFileUtils.createDirectories(
+                hadoopParams.getHadoopPidDir(), hadoopUser, hadoopGroup, Constants.PERMISSION_755, true);
+
+        LinuxFileUtils.toFileByTemplate(
+                hadoopParams.getHadoopConfContent(),
+                MessageFormat.format("{0}/hadoop.conf", HadoopParams.LIMITS_CONF_DIR),
+                Constants.ROOT_USER,
+                Constants.ROOT_USER,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFileByTemplate(
+                hadoopEnv.get("content").toString(),
+                MessageFormat.format("{0}/hadoop-env.sh", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFile(
+                ConfigType.XML,
+                MessageFormat.format("{0}/core-site.xml", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.coreSite());
+
+        LinuxFileUtils.toFile(
+                ConfigType.XML,
+                MessageFormat.format("{0}/hdfs-site.xml", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.hdfsSite());
+
+        LinuxFileUtils.toFile(
+                ConfigType.XML,
+                MessageFormat.format("{0}/hadoop-policy.xml", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.hadoopPolicy());
+
+        LinuxFileUtils.toFileByTemplate(
+                hadoopParams.workers(),
+                MessageFormat.format("{0}/workers", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFileByTemplate(
+                hadoopParams.hdfsLog4j().get("content").toString(),
+                MessageFormat.format("{0}/log4j.properties", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFileByTemplate(
+                yarnEnv.get("content").toString(),
+                MessageFormat.format("{0}/yarn-env.sh", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFile(
+                ConfigType.XML,
+                MessageFormat.format("{0}/yarn-site.xml", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.yarnSite(),
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFile(
+                ConfigType.XML,
+                MessageFormat.format("{0}/capacity-scheduler.xml", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.capacityScheduler());
+
+        LinuxFileUtils.toFileByTemplate(
+                hadoopParams.yarnLog4j().get("content").toString(),
+                MessageFormat.format("{0}/yarnservice-log4j.properties", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFileByTemplate(
+                mapredEnv.get("content").toString(),
+                MessageFormat.format("{0}/mapred-env.sh", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.getGlobalParamsMap());
+
+        LinuxFileUtils.toFile(
+                ConfigType.XML,
+                MessageFormat.format("{0}/mapred-site.xml", confDir),
+                hadoopUser,
+                hadoopGroup,
+                Constants.PERMISSION_644,
+                hadoopParams.mapredSite(),
+                hadoopParams.getGlobalParamsMap());
+
+        //        HdfsUtil.createDirectory(hadoopUser, "/apps");
+        //        HdfsUtil.createDirectory(hadoopUser, "/app-logs");
+        //        HdfsUtil.createDirectory(hadoopUser, "/apps/mapred");
+        //        HdfsUtil.createDirectory(hadoopUser, "/apps/mapred/staging");
+        //        HdfsUtil.createDirectory(hadoopUser, "/apps/mapred/history");
+        //        HdfsUtil.createDirectory(hadoopUser, "/apps/mapred/history/tmp");
+        //        HdfsUtil.createDirectory(hadoopUser, "/apps/mapred/history/done");
+
+        log.info("Successfully configured Hadoop");
+        return ShellResult.success();
+    }
+
+    public static void formatNameNode(HadoopParams hadoopParams) {
+        if (!isNameNodeFormatted(hadoopParams)) {
+            String formatCmd = MessageFormat.format(
+                    "{0}/hdfs --config {1} namenode -format -nonInteractive -force",
+                    hadoopParams.binDir(), hadoopParams.confDir());
+            try {
+                List<String> namenodes = HadoopComponentHosts.namenodes();
+                boolean ha = namenodes != null && namenodes.size() >= 2;
+                if (ha) {
+                    boolean allJnReachable = checkAllJournalNodesPortReachable(hadoopParams);
+                    if (!allJnReachable) {
+                        throw new StackException("Cannot format NameNode: Some JournalNodes are unreachable.");
+                    }
+                }
+                LinuxOSUtils.sudoExecCmd(formatCmd, hadoopParams.user());
+            } catch (Exception e) {
+                throw new StackException(e);
+            }
+
+            for (String nameNodeFormattedDir : hadoopParams.getNameNodeFormattedDirs()) {
+                LinuxFileUtils.createDirectories(
+                        nameNodeFormattedDir,
+                        hadoopParams.user(),
+                        hadoopParams.group(),
+                        Constants.PERMISSION_755,
+                        true);
+            }
+        }
+    }
+
+    private static boolean checkAllJournalNodesPortReachable(HadoopParams hadoopParams) throws InterruptedException {
+        List<String> journalNodeList = HadoopComponentHosts.journalnodes();
+        String port = hadoopParams.getJournalHttpPort();
+        if (journalNodeList == null || journalNodeList.isEmpty() || StringUtils.isBlank(port)) {
+            log.info("No JournalNodes configured (non-HA). Skipping JN reachability check.");
+            return true;
+        }
+        int retryCount = 0;
+        int maxRetry = 100;
+        long retryIntervalMs = 2000;
+        int connectTimeoutMs = 1000;
+        while (retryCount < maxRetry) {
+            boolean allReachable = true;
+            for (String host : journalNodeList) {
+                boolean isReachable = false;
+                Socket socket = null;
+                try {
+                    socket = new Socket();
+                    socket.connect(new InetSocketAddress(host, Integer.parseInt(port)), connectTimeoutMs);
+                    isReachable = true;
+                    log.info("JournalNode [{}:{}] is reachable.", host, port);
+                } catch (Exception e) {
+                    allReachable = false;
+                    log.warn(
+                            "JournalNode [{}:{}] is NOT reachable (retry {}/{}). Error: {}",
+                            host,
+                            port,
+                            retryCount + 1,
+                            maxRetry,
+                            e.getMessage());
+                } finally {
+                    if (socket != null && !socket.isClosed()) {
+                        try {
+                            socket.close();
+                        } catch (Exception e) {
+                            log.debug("Failed to close socket for [{}:{}].", host, port, e);
+                        }
+                    }
+                }
+            }
+            if (allReachable) {
+                log.info("All {} JournalNodes are reachable. Proceeding to format NameNode.", journalNodeList.size());
+                return true;
+            }
+            retryCount++;
+            if (retryCount < maxRetry) {
+                log.info("Waiting {}ms before next retry ({} remaining).", retryIntervalMs, maxRetry - retryCount);
+                TimeUnit.MILLISECONDS.sleep(retryIntervalMs);
+            }
+        }
+        log.error("Failed to reach all JournalNodes after {} retries. JournalNode list: {}", maxRetry, journalNodeList);
+        return false;
+    }
+
+    public static boolean isNameNodeFormatted(HadoopParams hadoopParams) {
+
+        boolean isFormatted = false;
+        for (String nameNodeFormattedDir : hadoopParams.getNameNodeFormattedDirs()) {
+            File file = new File(nameNodeFormattedDir);
+            if (file.exists() && file.isDirectory()) {
+                log.info("{} exists. Namenode DFS already formatted", nameNodeFormattedDir);
+                isFormatted = true;
+            }
+        }
+
+        if (isFormatted) {
+            for (String nameNodeFormattedDir : hadoopParams.getNameNodeFormattedDirs()) {
+                LinuxFileUtils.createDirectories(
+                        nameNodeFormattedDir,
+                        hadoopParams.user(),
+                        hadoopParams.group(),
+                        Constants.PERMISSION_755,
+                        true);
+            }
+            return true;
+        }
+
+        // Check if name dirs are not empty
+        String[] nameNodeDirs = hadoopParams.getDfsNameNodeDir().split(",");
+
+        for (String nameNodeDir : nameNodeDirs) {
+            File file = new File(nameNodeDir);
+            if (!file.exists()) {
+                log.info(
+                        "NameNode will not be formatted because the directory {} is missing or cannot be checked for content.",
+                        nameNodeDir);
+                return true;
+            } else {
+                File[] files = file.listFiles();
+                if (files != null && files.length > 0) {
+                    log.info("NameNode will not be formatted since {} exists and contains content", nameNodeDir);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+}

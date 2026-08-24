@@ -1,0 +1,30 @@
+import { get, put, post } from '@/api/request-util'
+
+export const listEstates = () => get<any>('/beat/estates')
+export const saveEstates = (body: any) => put<any>('/beat/estates', body)
+export const listParcels = () => get<any[]>('/beat/parcels')
+export const getParcelState = () => get<any>('/beat/parcels/state')
+export const listParcelServices = () => get<any[]>('/beat/parcels/services')
+export const setParcelRepoUrl = (repoUrl: string) => post<any>('/beat/parcels/repo-url', { repoUrl })
+export const activateParcel = (name: string) => post<any>('/beat/parcels/activate', { name })
+export const deactivateParcel = (name: string) => post<any>('/beat/parcels/deactivate', { name })
+export const removeParcel = (name: string) => post<any>('/beat/parcels/remove', { name })
+export const distributeParcel = (body: { hostnames: string[]; parcelName?: string }) =>
+  post<any>('/beat/parcels/distribute', body, { timeout: 600000 })
+export const getIdentity = () => get<any>('/beat/identity')
+export const saveIdentity = (body: any) => put<any>('/beat/identity', body)
+export const getTls = () => get<any>('/beat/tls')
+export const initTls = () => post<any>('/beat/tls/init')
+export const distributeTls = (body?: any) =>
+  post<any>('/beat/tls/distribute', body || {}, { timeout: 180000 })
+export const disableTls = () => post<any>('/beat/tls/disable', {}, { timeout: 60000 })
+export const listAudit = () => get<any[]>('/beat/audit')
+export const getLoginOptions = () => get<any>('/beat/login-options')
+export const loginDirectory = (body: { username: string; password: string }) => post<any>('/beat/login', body)
+export const enableDirectory = () => post<any>('/beat/identity/enable-directory')
+export const saveLdap = (body: any) => post<any>('/beat/identity/save-ldap', body)
+export const testLdap = (body: any) => post<any>('/beat/identity/test-ldap', body)
+export const enableKdc = () => post<any>('/beat/identity/enable-kdc')
+export const getKdc = () => get<any>('/beat/identity/kdc')
+export const fetchEvidenceLogs = (body: { service: string; lines?: number; hostname?: string }) =>
+  post<any>('/beat/evidence/logs', body)

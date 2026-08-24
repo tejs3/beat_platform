@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>ranger.service.http.port</name>
+        <value>6080</value>
+    </property>
+    <property>
+        <name>ranger.service.https.port</name>
+        <value>6182</value>
+    </property>
+    <property>
+        <name>install_properties</name>
+        <description>Ranger Admin install.properties template</description>
+        <value><![CDATA[
+PYTHON_COMMAND_INVOKER=python3
+DB_FLAVOR=POSTGRES
+db_root_user=postgres
+db_root_password=
+db_host=localhost
+db_name=ranger
+db_user=rangeradmin
+db_password=rangeradmin
+rangerAdmin_password=Admin123
+policymgr_external_url=http://localhost:6080
+unix_user=${ranger_user}
+unix_group=${ranger_group}
+]]></value>
+        <attrs>
+            <type>longtext</type>
+        </attrs>
+    </property>
+</configuration>

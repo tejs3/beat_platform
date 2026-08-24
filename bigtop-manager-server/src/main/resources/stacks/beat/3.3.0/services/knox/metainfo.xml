@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<metainfo>
+    <service>
+        <name>knox</name>
+        <display-name>Knox</display-name>
+        <desc>Apache Knox gateway (BEAT parcel). Front door for lakehouse tenants (GAO/Renault/Polaris users).</desc>
+        <version>2.0.0-1</version>
+        <user>knox</user>
+        <license>Apache-2.0</license>
+        <components>
+            <component>
+                <name>knox_gateway</name>
+                <display-name>Knox Gateway</display-name>
+                <category>server</category>
+                <cardinality>1+</cardinality>
+                <quick-link>
+                    <display-name>Knox Gateway</display-name>
+                    <http-port-property>gateway.port</http-port-property>
+                    <http-port-default>8443</http-port-default>
+                    <https-port-property>gateway.port</https-port-property>
+                    <https-port-default>8443</https-port-default>
+                </quick-link>
+            </component>
+        </components>
+        <package-specifics>
+            <package-specific>
+                <architectures>
+                    <arch>x86_64</arch>
+                    <arch>aarch64</arch>
+                </architectures>
+                <packages>
+                    <package>
+                        <name>knox-2.0.0-1.tar.gz</name>
+                        <checksum>SHA-256:52deb1800d0a3ae6249c66e844c052a82ec53a7aa6c597b4b78ab1f666c570a2</checksum>
+                    </package>
+                </packages>
+            </package-specific>
+        </package-specifics>
+        <required-services>
+            <service>zookeeper</service>
+        </required-services>
+    </service>
+</metainfo>

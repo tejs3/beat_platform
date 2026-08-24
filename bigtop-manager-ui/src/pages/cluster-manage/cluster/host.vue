@@ -1,0 +1,338 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
+<script setup lang="ts">
+  import { message, TableColumnType, TableProps } from 'ant-design-vue'
+  import { getHosts } from '@/api/host'
+  import * as hostApi from '@/api/host'
+  import { HOST_STATUS } from '@/utils/constant'
+  import { formatMemoryUsed, formatSwapUsed, memoryEnabled, swapEnabled } from '@/utils/host-resources'
+
+  import HostCreate from '@/features/create-host/index.vue'
+  import InstallDependencies from '@/features/create-host/install-dependencies.vue'
+
+  import type { FilterConfirmProps, FilterResetProps } from 'ant-design-vue/es/table/interface'
+  import type { GroupItem } from '@/components/common/button-group/types'
+  import type { HostVO } from '@/api/host/types'
+  import type { HostReq } from '@/api/command/types'
+
+  type Key = string | number
+
+  interface TableState {
+    selectedRowKeys: Key[]
+    searchText: string
+    searchedColumn: keyof HostVO
+  }
+
+  const { t } = useI18n()
+  const router = useRouter()
+  const route = useRoute()
+  const { confirmModal } = useModal()
+
+  const searchInputRef = ref()
+  const clusterId = ref(Number(route.params.id))
+  const hostCreateRef = ref<InstanceType<typeof HostCreate> | null>(null)
+  const installRef = ref<InstanceType<typeof InstallDependencies> | null>(null)
+
+  const state = reactive<TableState>({
+    searchText: '',
+    searchedColumn: '',
+    selectedRowKeys: []
+  })
+
+  const columns = computed((): TableColumnType<HostVO>[] => [
+    {
+      title: t('host.hostname'),
+      dataIndex: 'hostname',
+      key: 'hostname',
+      ellipsis: true,
+      customFilterDropdown: true,
+      onFilterDropdownOpenChange: (visible) => onFilterDropdownOpenChange(visible)
+    },
+    {
+      title: t('host.ip_address'),
+      dataIndex: 'ipv4',
+      key: 'ipv4',
+      ellipsis: true,
+      customFilterDropdown: true,
+      onFilterDropdownOpenChange: (visible) => onFilterDropdownOpenChange(visible)
+    },
+    {
+      title: t('common.os'),
+      dataIndex: 'os',
+      ellipsis: true
+    },
+    {
+      title: t('common.arch'),
+      dataIndex: 'arch',
+      ellipsis: true
+    },
+    {
+      title: t('host.component_count'),
+      dataIndex: 'componentNum',
+      ellipsis: true
+    },
+    {
+      title: t('host.memory_used'),
+      key: 'memoryUsed',
+      width: '170px'
+    },
+    {
+      title: t('host.swap_used'),
+      key: 'swapUsed',
+      width: '170px'
+    },
+    {
+      title: t('common.status'),
+      dataIndex: 'status',
+      key: 'status',
+      width: '160px',
+      ellipsis: true,
+      filterMultiple: false,
+      filters: [
+        { text: t('common.success'), value: 1 },
+        { text: t('common.failed'), value: 2 },
+        { text: t('common.unknown'), value: 3 }
+      ]
+    },
+    {
+      title: t('common.operation'),
+      key: 'operation',
+      width: '160px',
+      fixed: 'right'
+    }
+  ])
+
+  const { loading, dataSource, filtersParams, paginationProps, onChange } = useBaseTable<HostVO>({
+    columns: columns.value,
+    rows: []
+  })
+
+  const operations = computed((): GroupItem[] => [
+    { text: 'edit', clickEvent: (_item, args) => handleEdit(args) },
+    { text: 'remove', danger: true, clickEvent: (_item, args) => deleteHost([args.id]) }
+  ])
+
+  const onFilterDropdownOpenChange = (visible: boolean) => {
+    if (visible) {
+      setTimeout(() => {
+        searchInputRef.value.focus()
+      }, 100)
+    }
+  }
+
+  const onSelectChange = (selectedRowKeys: Key[]) => {
+    state.selectedRowKeys = selectedRowKeys
+  }
+
+  const handleSearch = (selectedKeys: Key[], confirm: (param?: FilterConfirmProps) => void, dataIndex: string) => {
+    confirm()
+    state.searchText = selectedKeys[0] as string
+    state.searchedColumn = dataIndex
+  }
+
+  const handleReset = (clearFilters: (param?: FilterResetProps) => void) => {
+    clearFilters({ confirm: true })
+    state.searchText = ''
+  }
+
+  const handleEdit = (row: HostVO) => {
+    const formatHost = { ...row, displayName: row.clusterDisplayName, clusterId: clusterId.value }
+    hostCreateRef.value?.handleOpen('EDIT', formatHost)
+  }
+
+  const bulkRemove = () => {
+    if (state.selectedRowKeys.length === 0) {
+      message.error(t('common.delete_empty'))
+      return
+    }
+    deleteHost(state.selectedRowKeys as number[])
+  }
+
+  const deleteHost = (ids: number[]) => {
+    confirmModal({
+      tipText: ids.length > 1 ? t('common.delete_msgs') : t('common.delete_msg'),
+      async onOk() {
+        try {
+          const data = await hostApi.removeHost({ ids })
+          if (data) {
+            message.success(t('common.delete_success'))
+            await getHostList(true)
+          }
+        } catch (error) {
+          console.log('error :>> ', error)
+        }
+      }
+    })
+  }
+
+  const viewHostDetail = (row: HostVO) => {
+    const { id: hostId } = row
+    router.push({ name: 'HostDetail', query: { hostId, clusterId: clusterId.value } })
+  }
+
+  const addHost = () => {
+    hostCreateRef.value?.handleOpen('ADD', { clusterId: clusterId.value })
+  }
+
+  const afterSetupHostConfig = async (type: 'ADD' | 'EDIT', item: HostReq) => {
+    if (type === 'ADD') {
+      installRef.value?.handleOpen(item)
+    } else {
+      await getHostList(true)
+    }
+  }
+
+  const getHostList = async (isReset = false) => {
+    loading.value = true
+    if (clusterId.value == undefined || !paginationProps.value) {
+      loading.value = false
+      return
+    }
+    if (isReset) {
+      paginationProps.value.current = 1
+    }
+    try {
+      const res = await getHosts({ ...filtersParams.value, clusterId: clusterId.value })
+      dataSource.value = res.content
+      paginationProps.value.total = res.total
+      loading.value = false
+    } catch (error) {
+      console.log('error :>> ', error)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const tableChange: TableProps['onChange'] = (pagination, filters, ...args) => {
+    onChange(pagination, filters, ...args)
+    getHostList()
+  }
+
+  onActivated(() => {
+    getHostList()
+  })
+</script>
+
+<template>
+  <div class="host">
+    <header>
+      <div class="header-title">{{ t('host.host_list') }}</div>
+      <a-space :size="16">
+        <a-button type="primary" danger @click="bulkRemove">{{ t('common.bulk_remove') }}</a-button>
+        <a-button type="primary" @click="addHost">{{ t('cluster.add_host') }}</a-button>
+      </a-space>
+    </header>
+    <a-table
+      :loading="loading"
+      :data-source="dataSource"
+      :columns="columns"
+      :pagination="paginationProps"
+      :row-selection="{ selectedRowKeys: state.selectedRowKeys, onChange: onSelectChange }"
+      @change="tableChange"
+    >
+      <template #customFilterDropdown="{ setSelectedKeys, selectedKeys, confirm, clearFilters, column }">
+        <div class="search">
+          <a-input
+            ref="searchInputRef"
+            :placeholder="t('common.enter_error', [column.title])"
+            :value="selectedKeys[0]"
+            @change="(e: any) => setSelectedKeys(e.target?.value ? [e.target?.value] : [])"
+            @press-enter="handleSearch(selectedKeys, confirm, column.dataIndex)"
+          />
+          <div class="search-option">
+            <a-button size="small" @click="handleReset(clearFilters)">
+              {{ t('common.reset') }}
+            </a-button>
+            <a-button type="primary" size="small" @click="handleSearch(selectedKeys, confirm, column.dataIndex)">
+              {{ t('common.search') }}
+            </a-button>
+          </div>
+        </div>
+      </template>
+      <template #customFilterIcon="{ filtered, column }">
+        <svg-icon v-if="column.key != 'status'" name="search" :highlight="filtered" />
+        <svg-icon v-else name="filter" :highlight="filtered" />
+      </template>
+      <template #bodyCell="{ record, column }">
+        <template v-if="column.key === 'hostname'">
+          <a-typography-link underline @click="viewHostDetail(record)"> {{ record.hostname }} </a-typography-link>
+        </template>
+        <template v-if="column.key === 'memoryUsed'">
+          <a-space size="small">
+            <span>{{ formatMemoryUsed(record) }}</span>
+            <a-tag :color="memoryEnabled(record) ? 'green' : 'default'">
+              {{ memoryEnabled(record) ? t('host.resource_enabled') : t('host.resource_disabled') }}
+            </a-tag>
+          </a-space>
+        </template>
+        <template v-if="column.key === 'swapUsed'">
+          <a-space size="small">
+            <span>{{ formatSwapUsed(record) }}</span>
+            <a-tag :color="swapEnabled(record) ? 'green' : 'default'">
+              {{ swapEnabled(record) ? t('host.resource_enabled') : t('host.resource_disabled') }}
+            </a-tag>
+          </a-space>
+        </template>
+        <template v-if="column.key === 'status'">
+          <svg-icon style="margin-left: 0" :name="HOST_STATUS[record.status].toLowerCase()" />
+          <span>{{ t(`common.${HOST_STATUS[record.status].toLowerCase()}`) }}</span>
+        </template>
+        <template v-if="column.key === 'operation'">
+          <button-group
+            i18n="common"
+            :text-compact="true"
+            :space="24"
+            :groups="operations"
+            :payload="record"
+            group-shape="default"
+            group-type="link"
+          />
+        </template>
+      </template>
+    </a-table>
+    <host-create
+      ref="hostCreateRef"
+      :current-hosts="dataSource"
+      :api-edit-caller="true"
+      @on-ok="afterSetupHostConfig"
+    />
+    <install-dependencies ref="installRef" @on-install-success="getHostList(true)" />
+  </div>
+</template>
+
+<style lang="scss" scoped>
+  header {
+    margin-bottom: $space-md;
+  }
+  .search {
+    display: grid;
+    gap: $space-sm;
+    padding: $space-sm;
+    &-option {
+      width: 100%;
+      display: grid;
+      gap: $space-sm;
+      grid-template-columns: 1fr 1fr;
+      button {
+        width: 100%;
+      }
+    }
+  }
+</style>

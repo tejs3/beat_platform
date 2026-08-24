@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>nifi.web.http.host</name>
+        <value>0.0.0.0</value>
+    </property>
+    <property>
+        <name>nifi.web.http.port</name>
+        <value>8091</value>
+    </property>
+    <property>
+        <name>nifi.web.https.port</name>
+        <value>8443</value>
+    </property>
+</configuration>

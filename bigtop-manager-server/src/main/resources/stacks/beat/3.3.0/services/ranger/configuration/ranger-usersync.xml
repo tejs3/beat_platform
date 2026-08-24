@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>install_properties</name>
+        <description>Ranger UserSync install.properties template</description>
+        <value><![CDATA[
+POLICY_MGR_URL=http://localhost:6080
+SYNC_SOURCE=unix
+SYNC_INTERVAL=5
+unix_user=${ranger_user}
+unix_group=${ranger_group}
+]]></value>
+        <attrs>
+            <type>longtext</type>
+        </attrs>
+    </property>
+</configuration>

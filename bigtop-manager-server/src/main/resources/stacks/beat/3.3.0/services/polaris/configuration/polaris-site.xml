@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>polaris.http.port</name>
+        <value>8181</value>
+    </property>
+    <property>
+        <name>polaris.realm</name>
+        <value>BEAT</value>
+    </property>
+</configuration>

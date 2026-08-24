@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>ranger_log_dir</name>
+        <value>/var/log/ranger</value>
+    </property>
+    <property>
+        <name>ranger_pid_dir</name>
+        <value>/var/run/ranger</value>
+    </property>
+</configuration>

@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<metainfo>
+    <service>
+        <name>polaris</name>
+        <display-name>Polaris</display-name>
+        <desc>Apache Polaris Iceberg REST catalog (BEAT parcel). Not a tenant name.</desc>
+        <version>1.4.1-1</version>
+        <user>polaris</user>
+        <license>Apache-2.0</license>
+        <components>
+            <component>
+                <name>polaris_server</name>
+                <display-name>Polaris Catalog</display-name>
+                <category>server</category>
+                <cardinality>1</cardinality>
+                <quick-link>
+                    <display-name>Polaris API</display-name>
+                    <http-port-property>polaris.http.port</http-port-property>
+                    <http-port-default>8181</http-port-default>
+                    <https-port-property>polaris.http.port</https-port-property>
+                    <https-port-default>8181</https-port-default>
+                </quick-link>
+            </component>
+        </components>
+        <package-specifics>
+            <package-specific>
+                <architectures>
+                    <arch>x86_64</arch>
+                    <arch>aarch64</arch>
+                </architectures>
+                <packages>
+                    <package>
+                        <name>polaris-1.4.1-1.tar.gz</name>
+                        <checksum>SHA-256:49473b3a61470d526ced8d06c68e19b69e5cc04088acf6927ab807fff7942d38</checksum>
+                    </package>
+                </packages>
+            </package-specific>
+        </package-specifics>
+        <required-services>
+            <service>zookeeper</service>
+        </required-services>
+    </service>
+</metainfo>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>gateway.port</name>
+        <value>8443</value>
+    </property>
+    <property>
+        <name>gateway.path</name>
+        <value>gateway</value>
+    </property>
+</configuration>

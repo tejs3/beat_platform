@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>log_dir</name>
+        <value>/var/log/nifi</value>
+    </property>
+    <property>
+        <name>pid_dir</name>
+        <value>/var/run/nifi</value>
+    </property>
+</configuration>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>log_dir</name>
+        <value>/var/log/ozone</value>
+    </property>
+    <property>
+        <name>pid_dir</name>
+        <value>/var/run/ozone</value>
+    </property>
+</configuration>

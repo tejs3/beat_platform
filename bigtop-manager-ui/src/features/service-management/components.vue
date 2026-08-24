@@ -1,0 +1,481 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
+<script setup lang="ts">
+  import { message, type TableColumnType, type TableProps } from 'ant-design-vue'
+  import { deleteComponent, getComponents } from '@/api/component'
+  import { useStackStore } from '@/store/stack'
+  import { useJobProgress } from '@/store/job-progress'
+  import { useTabStore } from '@/store/tab-state'
+
+  import { COMPONENT_STATUS, POLLING_INTERVAL } from '@/utils/constant'
+
+  import type { GroupItem } from '@/components/common/button-group/types'
+  import type { ComponentVO } from '@/api/component/types'
+  import type { FilterConfirmProps, FilterResetProps } from 'ant-design-vue/es/table/interface'
+  import type { Command, CommandRequest } from '@/api/command/types'
+  import type { ServiceVO } from '@/api/service/types'
+
+  type Key = string | number
+
+  interface TableState {
+    selectedRowKeys: Key[]
+    searchText: string
+    searchedColumn: keyof ComponentVO
+    selectedRows: ComponentVO[]
+  }
+
+  const { t } = useI18n()
+  const attrs = useAttrs() as Partial<ServiceVO>
+  const route = useRoute()
+  const router = useRouter()
+  const tabStore = useTabStore()
+  const jobProgressStore = useJobProgress()
+  const stackStore = useStackStore()
+  const { confirmModal } = useModal()
+
+  const { stacks, stackRelationMap } = storeToRefs(stackStore)
+  const resolvedServiceId = inject<Ref<number | undefined>>('resolvedServiceId', ref())
+
+  const searchInputRef = ref()
+  const pollingIntervalId = ref<any>(null)
+  const currTab = ref(tabStore.getActiveTab(route.path) ?? '1')
+
+  const commandRequest = shallowRef<CommandRequest>({
+    command: 'Add',
+    commandLevel: 'component',
+    componentCommands: []
+  })
+
+  const state = reactive<TableState>({
+    searchText: '',
+    searchedColumn: '',
+    selectedRowKeys: [],
+    selectedRows: []
+  })
+
+  const payload = computed(() => {
+    const id = Number(route.params.id)
+    const serviceId = Number(resolvedServiceId?.value ?? route.params.serviceId ?? attrs.id)
+    return [id, serviceId] as [number, number]
+  })
+
+  const componentsFromStack = computed(() => {
+    const entries: [string, ComponentVO[]][] = []
+
+    stacks.value.forEach(({ services = [] }) => {
+      services.forEach(({ name, components }) => {
+        if (name && components) {
+          entries.push([name, components])
+        }
+      })
+    })
+
+    return new Map(entries)
+  })
+
+  const columns = computed((): TableColumnType<ComponentVO>[] => [
+    {
+      title: t('common.componentname'),
+      dataIndex: 'displayName',
+      key: 'name',
+      ellipsis: true,
+      filterMultiple: false,
+      filters: [...(componentsFromStack.value.get(attrs.name!)?.values() || [])]?.map((v) => ({
+        text: v?.displayName || '',
+        value: v?.name || ''
+      }))
+    },
+    {
+      title: t('host.hostname'),
+      dataIndex: 'hostname',
+      key: 'hostname',
+      ellipsis: true,
+      customFilterDropdown: true
+    },
+    {
+      title: t('common.status'),
+      dataIndex: 'status',
+      key: 'status',
+      width: 160,
+      ellipsis: true,
+      filterMultiple: false,
+      filters: [
+        {
+          text: t('common.success'),
+          value: 1
+        },
+        {
+          text: t('common.failed'),
+          value: 2
+        },
+        {
+          text: t('common.unknown'),
+          value: 3
+        }
+      ]
+    },
+    {
+      title: 'Process',
+      key: 'process',
+      dataIndex: 'processDir',
+      ellipsis: true,
+      width: 320
+    },
+    {
+      title: t('common.quick_link'),
+      key: 'quickLink',
+      dataIndex: 'quickLink',
+      ellipsis: true
+    },
+    {
+      title: t('common.operation'),
+      width: 280,
+      key: 'operation',
+      fixed: 'right'
+    }
+  ])
+
+  const { loading, dataSource, paginationProps, filtersParams, onChange } = useBaseTable<ComponentVO>({
+    columns: columns.value,
+    rows: []
+  })
+
+  const operations = shallowRef<GroupItem<keyof typeof Command>[]>([
+    {
+      text: 'start',
+      action: 'Start',
+      hidden: (_, args) => stackRelationMap.value?.components[`${args.name}`].category === 'client',
+      clickEvent: (item, args) => handleTableOperation(item!, args)
+    },
+    {
+      text: 'stop',
+      action: 'Stop',
+      hidden: (_, args) => stackRelationMap.value?.components[`${args.name}`].category === 'client',
+      clickEvent: (item, args) => handleTableOperation(item!, args)
+    },
+    {
+      text: 'restart',
+      action: 'Restart',
+      hidden: (_, args) => stackRelationMap.value?.components[`${args.name}`].category === 'client',
+      clickEvent: (item, args) => handleTableOperation(item!, args)
+    },
+    {
+      text: 'remove',
+      danger: true,
+      clickEvent: (_, args) => handleDelete(args)
+    }
+  ])
+
+  const batchOperations = computed((): GroupItem[] => [
+    {
+      text: t('common.batch_operation'),
+      type: 'primary',
+      dropdownMenu: [
+        {
+          action: 'Start',
+          text: t('common.start', [t('common.selected')])
+        },
+        {
+          action: 'Restart',
+          text: t('common.restart', [t('common.selected')])
+        },
+        {
+          action: 'Stop',
+          text: t('common.stop', [t('common.selected')])
+        }
+      ],
+      dropdownMenuClickEvent: (info) => dropdownMenuClick!(info)
+    }
+  ])
+
+  const onSelectChange = (selectedRowKeys: Key[], selectedRows: ComponentVO[]) => {
+    state.selectedRowKeys = selectedRowKeys
+    state.selectedRows = selectedRows
+  }
+
+  const handleSearch = (selectedKeys: Key[], confirm: (param?: FilterConfirmProps) => void, dataIndex: string) => {
+    confirm()
+    state.searchText = selectedKeys[0] as string
+    state.searchedColumn = dataIndex
+    stopPolling()
+    startPolling(true, true)
+  }
+
+  const handleReset = (clearFilters: (param?: FilterResetProps) => void) => {
+    clearFilters({ confirm: true })
+    state.searchText = ''
+    stopPolling()
+    startPolling(true, true)
+  }
+
+  const dropdownMenuClick: GroupItem['dropdownMenuClickEvent'] = async ({ key }) => {
+    if (state.selectedRows.length === 0) {
+      message.error(t('common.select_error', [`${t('common.component')}`.toLowerCase()]))
+      return
+    }
+    commandRequest.value.command = key as keyof typeof Command
+    const map = state.selectedRows.reduce((map, v) => {
+      if (!map.has(v.name)) {
+        map.set(v.name, { componentName: v.name, hostnames: [v.hostname] })
+      } else {
+        map.get(v.name).hostnames.push(v.hostname)
+      }
+      return map
+    }, new Map())
+    commandRequest.value.componentCommands = [...map.values()]
+    execOperation(state.selectedRows)
+  }
+
+  const handleTableOperation = async (item: GroupItem<keyof typeof Command>, row: ComponentVO) => {
+    commandRequest.value.command = item.action!
+    commandRequest.value.componentCommands = [
+      {
+        componentName: row.name!,
+        hostnames: [row.hostname!]
+      }
+    ]
+    execOperation([row])
+  }
+
+  const openRole = (row: ComponentVO) => {
+    const [clusterId, serviceId] = payload.value
+    router.push(`/cluster-manage/clusters/${clusterId}/service-detail/${serviceId}/role/${row.id}`)
+  }
+
+  const execOperation = (rows?: ComponentVO[]) => {
+    const [clusterId] = payload.value
+    const displayNameOfRows: string[] = rows ? rows.map((v) => v.displayName ?? '').filter((v) => v) : []
+    jobProgressStore.processCommand(
+      { ...commandRequest.value, clusterId },
+      async () => {
+        getComponentList(true, true)
+        state.selectedRowKeys = []
+        state.selectedRows = []
+      },
+      { displayName: displayNameOfRows }
+    )
+  }
+
+  const handleDelete = async (row: ComponentVO) => {
+    confirmModal({
+      tipText: t('common.delete_msg'),
+      async onOk() {
+        try {
+          const [clusterId] = payload.value
+          const data = await deleteComponent({ clusterId, id: row.id! })
+          if (data) {
+            message.success(t('common.delete_success'))
+            getComponentList(true, true)
+          }
+        } catch (error) {
+          console.log('error :>> ', error)
+        }
+      }
+    })
+  }
+
+  const getComponentList = async (isReset = false, isFirstCall = false) => {
+    const [clusterId, serviceId] = payload.value
+    if (!paginationProps.value) {
+      loading.value = false
+      return
+    }
+    if (isReset) {
+      paginationProps.value.current = 1
+    }
+    try {
+      if (isFirstCall) {
+        loading.value = true
+      }
+      const res = await getComponents({ ...filtersParams.value, clusterId, serviceId })
+      dataSource.value = res.content
+      paginationProps.value.total = res.total
+      loading.value = false
+    } catch (error) {
+      console.log('error :>> ', error)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const tableChange: TableProps['onChange'] = (...args) => {
+    onChange(...args)
+    stopPolling()
+    startPolling()
+  }
+
+  const startPolling = (isReset = false, isFirstCall = false) => {
+    getComponentList(isReset, isFirstCall)
+    pollingIntervalId.value = setInterval(() => {
+      getComponentList()
+    }, POLLING_INTERVAL / 10)
+  }
+
+  const stopPolling = () => {
+    if (pollingIntervalId.value) {
+      clearInterval(pollingIntervalId.value)
+      pollingIntervalId.value = null
+    }
+  }
+
+  const addComponent = () => {
+    const [clusterId, serviceId] = payload.value
+    if (!serviceId || Number.isNaN(serviceId)) {
+      message.error(t('common.no_data'))
+      return
+    }
+    const creationMode = clusterId === 0 ? 'public' : 'internal'
+    const routerName = clusterId === 0 ? 'CreateInfraComponent' : 'CreateComponent'
+    // Must pass serviceId explicitly — CM-style process URLs only have processId
+    router.push({
+      name: routerName,
+      params: {
+        id: String(clusterId),
+        serviceId: String(serviceId),
+        creationMode,
+        type: 'component'
+      }
+    })
+  }
+
+  onActivated(() => {
+    if (currTab.value != '2') return
+    startPolling()
+  })
+
+  onDeactivated(() => {
+    stopPolling()
+  })
+</script>
+
+<template>
+  <div class="component">
+    <header>
+      <div class="header-title">{{ t('common.component') }}</div>
+      <div class="list-operation">
+        <a-button type="primary" @click="addComponent">{{ t('common.add', [`${t('common.component')}`]) }}</a-button>
+        <button-group :groups="batchOperations" group-shape="default" />
+      </div>
+    </header>
+    <a-table
+      row-key="id"
+      :loading="loading"
+      :data-source="dataSource"
+      :columns="columns"
+      :pagination="paginationProps"
+      :scroll="{ x: 900, y: 1000 }"
+      :row-selection="{ selectedRowKeys: state.selectedRowKeys, onChange: onSelectChange }"
+      @change="tableChange"
+    >
+      <template #customFilterDropdown="{ setSelectedKeys, selectedKeys, confirm, clearFilters, column }">
+        <div class="search">
+          <a-input
+            ref="searchInputRef"
+            :placeholder="t('common.enter_error', [column.title])"
+            :value="selectedKeys[0]"
+            @change="(e: any) => setSelectedKeys(e.target?.value ? [e.target?.value] : [])"
+            @press-enter="handleSearch(selectedKeys, confirm, column.dataIndex)"
+          />
+          <div class="search-option">
+            <a-button size="small" @click="handleReset(clearFilters)">
+              {{ t('common.reset') }}
+            </a-button>
+            <a-button type="primary" size="small" @click="handleSearch(selectedKeys, confirm, column.dataIndex)">
+              {{ t('common.search') }}
+            </a-button>
+          </div>
+        </div>
+      </template>
+      <template #customFilterIcon="{ filtered, column }">
+        <svg-icon v-if="!['name', 'status'].includes(column.key)" name="search" :highlight="filtered" />
+        <svg-icon v-else name="filter" :highlight="filtered" />
+      </template>
+      <template #bodyCell="{ record, column }">
+        <template v-if="column.key === 'name'">
+          <a-typography-link @click="openRole(record)">{{ record.displayName }}</a-typography-link>
+        </template>
+        <template v-if="['status'].includes(column.key as string)">
+          <svg-icon
+            style="margin-left: 0"
+            :name="(COMPONENT_STATUS[record.status] === 'STOPPED' ? 'unknown' : COMPONENT_STATUS[record.status]).toLowerCase()"
+          />
+          <span>{{ t(`common.${COMPONENT_STATUS[record.status].toLowerCase()}`) }}</span>
+        </template>
+        <template v-if="column.key === 'quickLink'">
+          <span v-if="!record.quickLink">{{ t('common.no_link') }}</span>
+          <a-typography-link v-else :href="record.quickLink.url" target="_blank">
+            {{ record.quickLink.displayName }}
+          </a-typography-link>
+        </template>
+        <template v-if="column.key === 'process'">
+          <span v-if="!record.processId" class="process-line muted">—</span>
+          <span v-else class="process-line" :title="record.processDir">
+            {{ record.processId }} → {{ record.processDir }}
+          </span>
+        </template>
+        <template v-if="column.key === 'operation'">
+          <button-group
+            i18n="common"
+            :text-compact="true"
+            :space="24"
+            :groups="operations"
+            :payload="record"
+            group-shape="default"
+            group-type="link"
+          />
+        </template>
+      </template>
+    </a-table>
+  </div>
+</template>
+
+<style lang="scss" scoped>
+  .component {
+    .list-operation {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+  header {
+    margin-bottom: $space-md;
+  }
+  .process-line {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .muted {
+    color: #999;
+  }
+  .search {
+    display: grid;
+    gap: $space-sm;
+    padding: $space-sm;
+    &-option {
+      width: 100%;
+      display: grid;
+      gap: $space-sm;
+      grid-template-columns: 1fr 1fr;
+      button {
+        width: 100%;
+      }
+    }
+  }
+</style>

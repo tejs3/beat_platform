@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<metainfo>
+    <service>
+        <name>nifi</name>
+        <display-name>NiFi</display-name>
+        <desc>Apache NiFi 1.28 (BEAT parcel). Java 11/17 compatible with BEAT lab.</desc>
+        <version>1.28.1-1</version>
+        <user>nifi</user>
+        <license>Apache-2.0</license>
+        <components>
+            <component>
+                <name>nifi_node</name>
+                <display-name>NiFi Node</display-name>
+                <category>server</category>
+                <cardinality>1+</cardinality>
+                <quick-link>
+                    <display-name>NiFi UI</display-name>
+                    <http-port-property>nifi.web.http.port</http-port-property>
+                    <http-port-default>8080</http-port-default>
+                    <https-port-property>nifi.web.https.port</https-port-property>
+                    <https-port-default>8443</https-port-default>
+                </quick-link>
+            </component>
+        </components>
+        <package-specifics>
+            <package-specific>
+                <architectures>
+                    <arch>x86_64</arch>
+                    <arch>aarch64</arch>
+                </architectures>
+                <packages>
+                    <package>
+                        <name>nifi-1.28.1-1.tar.gz</name>
+                        <checksum>SHA-256:b3008f838219e61bb9dd4d39eced41adce4c9520781e02b5dcb5927353fa4a02</checksum>
+                    </package>
+                </packages>
+            </package-specific>
+        </package-specifics>
+    </service>
+</metainfo>

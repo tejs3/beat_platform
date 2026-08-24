@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<metainfo>
+    <service>
+        <name>ozone</name>
+        <display-name>Ozone</display-name>
+        <desc>Apache Ozone object store (BEAT parcel). Compatible with Hadoop 3.3 / Java 8-17.</desc>
+        <version>1.4.1-1</version>
+        <user>hadoop</user>
+        <license>Apache-2.0</license>
+        <components>
+            <component>
+                <name>ozone_scm</name>
+                <display-name>Ozone SCM</display-name>
+                <category>server</category>
+                <cardinality>1</cardinality>
+            </component>
+            <component>
+                <name>ozone_om</name>
+                <display-name>Ozone Manager</display-name>
+                <category>server</category>
+                <cardinality>1+</cardinality>
+            </component>
+            <component>
+                <name>ozone_datanode</name>
+                <display-name>Ozone DataNode</display-name>
+                <category>server</category>
+                <cardinality>1+</cardinality>
+            </component>
+            <component>
+                <name>ozone_s3g</name>
+                <display-name>Ozone S3 Gateway</display-name>
+                <category>server</category>
+                <cardinality>0+</cardinality>
+            </component>
+            <component>
+                <name>ozone_recon</name>
+                <display-name>Ozone Recon</display-name>
+                <category>server</category>
+                <cardinality>0-1</cardinality>
+            </component>
+            <component>
+                <name>ozone_client</name>
+                <display-name>Ozone Client</display-name>
+                <category>client</category>
+                <cardinality>1+</cardinality>
+            </component>
+        </components>
+        <package-specifics>
+            <package-specific>
+                <architectures>
+                    <arch>x86_64</arch>
+                    <arch>aarch64</arch>
+                </architectures>
+                <packages>
+                    <package>
+                        <name>ozone-1.4.1-1.tar.gz</name>
+                        <checksum>SHA-256:13cbac8c5af47b0650e9a0c7639ee4e5b92ec3710b0287be969b6594c7ad3737</checksum>
+                    </package>
+                </packages>
+            </package-specific>
+        </package-specifics>
+        <required-services>
+            <service>zookeeper</service>
+        </required-services>
+    </service>
+</metainfo>

@@ -1,0 +1,571 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *    https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.bigtop.manager.stack.bigtop.v3_3_0.hadoop;
+
+import org.apache.bigtop.manager.common.shell.ShellResult;
+import org.apache.bigtop.manager.grpc.payload.ComponentCommandPayload;
+import org.apache.bigtop.manager.stack.bigtop.param.BigtopParams;
+import org.apache.bigtop.manager.stack.core.annotations.GlobalParams;
+import org.apache.bigtop.manager.stack.core.spi.param.Params;
+import org.apache.bigtop.manager.stack.core.utils.LocalSettings;
+import org.apache.bigtop.manager.stack.core.utils.linux.LinuxOSUtils;
+
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.auto.service.AutoService;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Getter
+@Slf4j
+@AutoService(Params.class)
+@NoArgsConstructor
+public class HadoopParams extends BigtopParams {
+
+    private final String hadoopLogDir = "/var/log/hadoop";
+    private final String hadoopPidDir = "/var/run/hadoop";
+
+    // hadoop-${user}-${component}.pid
+    private final String nameNodePidFile = hadoopPidDir + "/hadoop-hadoop-namenode.pid";
+    private final String dataNodePidFile = hadoopPidDir + "/hadoop-hadoop-datanode.pid";
+    private final String sNameNodePidFile = hadoopPidDir + "/hadoop-hadoop-secondarynamenode.pid";
+    private final String journalNodePidFile = hadoopPidDir + "/hadoop-hadoop-journalnode.pid";
+    private final String zkfcPidFile = hadoopPidDir + "/hadoop-hadoop-zkfc.pid";
+    private final String resourceManagerPidFile = hadoopPidDir + "/hadoop-hadoop-resourcemanager.pid";
+    private final String nodeManagerPidFile = hadoopPidDir + "/hadoop-hadoop-nodemanager.pid";
+    private final String historyServerPidFile = hadoopPidDir + "/hadoop-hadoop-historyserver.pid";
+
+    private String hadoopConfContent;
+
+    private String dfsDataDir;
+    private String dfsNameNodeDir;
+    private String dfsNameNodeCheckPointDir;
+    private String dfsDomainSocketPathPrefix;
+    private String dfsJourNalNodeDir;
+    private String dfsHttpPort;
+    private String journalHttpPort;
+
+    private String nodeManagerLogDir = "/hadoop/yarn/log";
+    private String nodeManagerLocalDir = "/hadoop/yarn/local";
+
+    private List<String> nameNodeFormattedDirs;
+
+    public HadoopParams(ComponentCommandPayload componentCommandPayload) {
+        super(componentCommandPayload);
+        globalParamsMap.put("hadoop_user", user());
+        globalParamsMap.put("hadoop_group", group());
+        globalParamsMap.put("datanode_hosts", HadoopComponentHosts.datanodes());
+        globalParamsMap.put("java_home", javaHome());
+        globalParamsMap.put("hadoop_home", serviceHome());
+        globalParamsMap.put("hadoop_conf_dir", confDir());
+        globalParamsMap.put("hadoop_libexec_dir", serviceHome() + "/libexec");
+        globalParamsMap.put("exclude_hosts", new ArrayList<>());
+    }
+
+    @GlobalParams
+    public Map<String, Object> hadoopLimits() {
+        Map<String, Object> hadoopConf = LocalSettings.configurations(getServiceName(), "hadoop.conf");
+        hadoopConfContent = hadoopConf.get("content").toString();
+        return hadoopConf;
+    }
+
+    public String workers() {
+        Map<String, Object> hdfsConf = LocalSettings.configurations(getServiceName(), "workers");
+        return (String) hdfsConf.get("content");
+    }
+
+    @GlobalParams
+    public Map<String, Object> hdfsLog4j() {
+        return LocalSettings.configurations(getServiceName(), "hdfs-log4j");
+    }
+
+    @GlobalParams
+    public Map<String, Object> coreSite() {
+        Map<String, Object> coreSite = LocalSettings.configurations(getServiceName(), "core-site");
+        if (coreSite == null) {
+            coreSite = new HashMap<>();
+        }
+        List<String> namenodeList = HadoopComponentHosts.namenodes();
+        List<String> zookeeperServerHosts = LocalSettings.componentHosts("zookeeper_server");
+        Map<String, Object> ZKPort = LocalSettings.configurations("zookeeper", "zoo.cfg");
+        String clientPort = (String) ZKPort.get("clientPort");
+        StringBuilder zkString = new StringBuilder();
+        for (int i = 0; i < zookeeperServerHosts.size(); i++) {
+            String host = zookeeperServerHosts.get(i);
+            if (host == null || host.trim().isEmpty()) {
+                continue;
+            }
+            zkString.append(host.trim()).append(":").append(clientPort);
+            if (i != zookeeperServerHosts.size() - 1) {
+                zkString.append(",");
+            }
+        }
+        if (!namenodeList.isEmpty() && namenodeList.size() == 1) {
+            coreSite.put(
+                    "fs.defaultFS",
+                    replaceOr(
+                            coreSite.get("fs.defaultFS"),
+                            "localhost",
+                            namenodeList.get(0),
+                            "hdfs://" + namenodeList.get(0) + ":8020"));
+        } else if (!namenodeList.isEmpty() && namenodeList.size() == 2) {
+            coreSite.put(
+                    "fs.defaultFS",
+                    replaceOr(coreSite.get("fs.defaultFS"), "localhost:8020", "nameservice1", "hdfs://nameservice1"));
+            coreSite.put("ha.zookeeper.quorum", zkString);
+        }
+        return coreSite;
+    }
+
+    @GlobalParams
+    public Map<String, Object> hadoopPolicy() {
+        return LocalSettings.configurations(getServiceName(), "hadoop-policy");
+    }
+
+    @GlobalParams
+    public Map<String, Object> hdfsSite() {
+        Map<String, Object> hdfsSite = LocalSettings.configurations(getServiceName(), "hdfs-site");
+        if (hdfsSite == null) {
+            hdfsSite = new HashMap<>();
+        }
+        List<String> namenodeList = HadoopComponentHosts.namenodes();
+        List<String> journalNodeList = HadoopComponentHosts.journalnodes();
+        if (!namenodeList.isEmpty() && namenodeList.size() == 1) {
+            String nn = namenodeList.get(0);
+            hdfsSite.put(
+                    "dfs.namenode.rpc-address",
+                    replaceOr(hdfsSite.get("dfs.namenode.rpc-address"), "0.0.0.0", nn, nn + ":8020"));
+            hdfsSite.put(
+                    "dfs.datanode.https.address",
+                    replaceOr(hdfsSite.get("dfs.datanode.https.address"), "0.0.0.0", nn, "0.0.0.0:9865"));
+            hdfsSite.put(
+                    "dfs.namenode.https-address",
+                    replaceOr(hdfsSite.get("dfs.namenode.https-address"), "0.0.0.0", nn, nn + ":9871"));
+        } else if (!namenodeList.isEmpty() && namenodeList.size() == 2) {
+            hdfsSite.remove("dfs.namenode.http-address");
+            hdfsSite.put("dfs.ha.automatic-failover.enabled", "true");
+            hdfsSite.put("dfs.nameservices", "nameservice1");
+            hdfsSite.put("dfs.ha.namenodes.nameservice1", "nn1,nn2");
+            hdfsSite.put("dfs.namenode.rpc-address.nameservice1.nn1", namenodeList.get(0) + ":8020");
+            hdfsSite.put("dfs.namenode.rpc-address.nameservice1.nn2", namenodeList.get(1) + ":8020");
+            hdfsSite.put("dfs.namenode.http-address.nameservice1.nn1", namenodeList.get(0) + ":9870");
+            hdfsSite.put("dfs.namenode.http-address.nameservice1.nn2", namenodeList.get(1) + ":9870");
+            hdfsSite.put(
+                    "dfs.namenode.shared.edits.dir",
+                    "qjournal://" + journalNodeList.get(0) + ":8485;" + journalNodeList.get(1) + ":8485;"
+                            + journalNodeList.get(2) + ":8485" + "/nameservice1");
+            hdfsSite.put("dfs.journalnode.edits.dir", "/hadoop/dfs/journal");
+            hdfsSite.put(
+                    "dfs.client.failover.proxy.provider.nameservice1",
+                    "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider");
+            hdfsSite.put("dfs.journalnode.edits.dir", "/hadoop/dfs/journal");
+            hdfsSite.put("dfs.ha.fencing.methods", "shell(/bin/true)");
+            hdfsSite.put("dfs.replication", "3");
+        }
+
+        // Configure native library dependent settings
+        configureNativeLibraryDependentSettings(hdfsSite);
+
+        dfsDataDir = (String) hdfsSite.get("dfs.datanode.data.dir");
+        dfsNameNodeDir = (String) hdfsSite.get("dfs.namenode.name.dir");
+        if (StringUtils.isBlank(dfsNameNodeDir)) {
+            dfsNameNodeDir = "/hadoop/dfs/name";
+        }
+        nameNodeFormattedDirs = Arrays.stream(dfsNameNodeDir.split(","))
+                .map(x -> x + "/namenode-formatted/")
+                .toList();
+        String dfsHttpAddress = (String) hdfsSite.get("dfs.namenode.http-address.nameservice1.nn1");
+        if (dfsHttpAddress != null && dfsHttpAddress.contains(":")) {
+            String[] parts = dfsHttpAddress.split(":");
+            if (parts.length >= 2) {
+                dfsHttpPort = parts[1].trim();
+            }
+        }
+        String journalHttpAddress = (String) hdfsSite.get("dfs.namenode.shared.edits.dir");
+        if (StringUtils.isNotBlank(journalHttpAddress)) {
+            Pattern pattern = Pattern.compile(":(\\d{1,5})");
+            Matcher matcher = pattern.matcher(journalHttpAddress);
+            if (matcher.find()) {
+                journalHttpPort = matcher.group(1);
+                log.info("find jounalnode port: " + journalHttpPort);
+            } else {
+                log.warn("not found journalnode port!");
+            }
+        }
+        String dfsDomainSocketPath = (String) hdfsSite.get("dfs.domain.socket.path");
+        if (StringUtils.isNotBlank(dfsDomainSocketPath)) {
+            File file = new File(dfsDomainSocketPath);
+            dfsDomainSocketPathPrefix = file.getParent();
+            //            dfsDomainSocketPathPrefix = dfsDomainSocketPath.replace("dn._PORT", "");
+        }
+        dfsNameNodeCheckPointDir = (String) hdfsSite.get("dfs.namenode.checkpoint.dir");
+        dfsJourNalNodeDir = (String) hdfsSite.get("dfs.journalnode.edits.dir");
+        return hdfsSite;
+    }
+
+    @GlobalParams
+    public Map<String, Object> yarnLog4j() {
+        return LocalSettings.configurations(getServiceName(), "yarn-log4j");
+    }
+
+    @GlobalParams
+    public Map<String, Object> yarnSite() {
+        Map<String, Object> yarnSite = LocalSettings.configurations(getServiceName(), "yarn-site");
+        List<String> resourcemanagerList = HadoopComponentHosts.resourcemanagers();
+        if (!resourcemanagerList.isEmpty()) {
+            yarnSite.put("yarn.resourcemanager.hostname", MessageFormat.format("{0}", resourcemanagerList.get(0)));
+            yarnSite.put(
+                    "yarn.resourcemanager.resource-tracker.address",
+                    ((String) yarnSite.get("yarn.resourcemanager.resource-tracker.address"))
+                            .replace("0.0.0.0", resourcemanagerList.get(0)));
+            yarnSite.put(
+                    "yarn.resourcemanager.scheduler.address",
+                    ((String) yarnSite.get("yarn.resourcemanager.scheduler.address"))
+                            .replace("0.0.0.0", resourcemanagerList.get(0)));
+            yarnSite.put(
+                    "yarn.resourcemanager.address",
+                    ((String) yarnSite.get("yarn.resourcemanager.address"))
+                            .replace("0.0.0.0", resourcemanagerList.get(0)));
+            yarnSite.put(
+                    "yarn.resourcemanager.admin.address",
+                    ((String) yarnSite.get("yarn.resourcemanager.admin.address"))
+                            .replace("0.0.0.0", resourcemanagerList.get(0)));
+            yarnSite.put(
+                    "yarn.resourcemanager.webapp.address",
+                    ((String) yarnSite.get("yarn.resourcemanager.webapp.address"))
+                            .replace("0.0.0.0", resourcemanagerList.get(0)));
+            yarnSite.put(
+                    "yarn.resourcemanager.webapp.https.address",
+                    ((String) yarnSite.get("yarn.resourcemanager.webapp.https.address"))
+                            .replace("0.0.0.0", resourcemanagerList.get(0)));
+        }
+
+        nodeManagerLogDir = (String) yarnSite.get("yarn.nodemanager.log-dirs");
+        nodeManagerLocalDir = (String) yarnSite.get("yarn.nodemanager.local-dirs");
+        return yarnSite;
+    }
+
+    @GlobalParams
+    public Map<String, Object> capacityScheduler() {
+        Map<String, Object> cfg = LocalSettings.configurations(getServiceName(), "capacity-scheduler");
+        if (cfg == null || cfg.isEmpty()) {
+            cfg = new HashMap<>();
+            cfg.put("yarn.scheduler.capacity.maximum-applications", "10000");
+            cfg.put("yarn.scheduler.capacity.maximum-am-resource-percent", "0.25");
+            cfg.put(
+                    "yarn.scheduler.capacity.resource-calculator",
+                    "org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator");
+            cfg.put("yarn.scheduler.capacity.root.queues", "default");
+            cfg.put("yarn.scheduler.capacity.root.capacity", "100");
+            cfg.put("yarn.scheduler.capacity.root.default.capacity", "100");
+            cfg.put("yarn.scheduler.capacity.root.default.maximum-capacity", "100");
+            cfg.put("yarn.scheduler.capacity.root.default.user-limit-factor", "1");
+            cfg.put("yarn.scheduler.capacity.root.default.state-locality-delay", "-1");
+            cfg.put("yarn.scheduler.capacity.root.default.acl_submit_applications", "*");
+            cfg.put("yarn.scheduler.capacity.root.default.acl_administer_queue", "*");
+            cfg.put("yarn.scheduler.capacity.root.acl_administer_queue", "*");
+            cfg.put("yarn.scheduler.capacity.node-locality-delay", "40");
+        }
+        return cfg;
+    }
+
+    @GlobalParams
+    public Map<String, Object> mapredSite() {
+        return LocalSettings.configurations(getServiceName(), "mapred-site");
+    }
+
+    @GlobalParams
+    public Map<String, Object> hadoopEnv() {
+        Map<String, Object> configurations = LocalSettings.configurations(getServiceName(), "hadoop-env");
+        configurations.put("hadoop_log_dir", hadoopLogDir);
+        configurations.put("hadoop_pid_dir", hadoopPidDir);
+        return configurations;
+    }
+
+    @GlobalParams
+    public Map<String, Object> yarnEnv() {
+        return LocalSettings.configurations(getServiceName(), "yarn-env");
+    }
+
+    @GlobalParams
+    public Map<String, Object> mapredEnv() {
+        return LocalSettings.configurations(getServiceName(), "mapred-env");
+    }
+
+    @Override
+    public String legacyConfDir() {
+        return serviceHome() + "/etc/hadoop";
+    }
+
+    @Override
+    public String confDir() {
+        return resolveConfDir(legacyConfDir());
+    }
+
+    public String binDir() {
+        return serviceHome() + "/bin";
+    }
+
+    @Override
+    public String getServiceName() {
+        return "hadoop";
+    }
+
+    /**
+     * Configure native library dependent settings for HDFS.
+     * This method intelligently detects libhadoop native library availability
+     * and automatically configures short-circuit reads and UNIX domain socket settings.
+     * <p>
+     * Short-circuit read optimization explanation:
+     * - When client and DataNode are on the same node, network layer can be bypassed
+     * to read local data blocks directly
+     * - Requires glibc version >= 2.34 to ensure native library compatibility
+     * - Uses UNIX domain sockets for inter-process communication to improve performance
+     *
+     * @param hdfsSite The HDFS site configuration map to be modified
+     */
+    private void configureNativeLibraryDependentSettings(Map<String, Object> hdfsSite) {
+        try {
+            // Detect system glibc version to determine native library support
+            boolean enableShortCircuit = isGlibcVersionCompatible();
+            String domainSocketPath = null;
+
+            if (enableShortCircuit) {
+                log.info("Detected glibc version >= 2.34, enabling short-circuit read optimization");
+
+                // Get recommended domain socket path and append port placeholder
+                domainSocketPath = (String) hdfsSite.get("dfs.domain.socket.path");
+                if (domainSocketPath != null) {
+                    // _PORT placeholder will be replaced with actual port number by DataNode at runtime
+                    if (!domainSocketPath.endsWith("dn._PORT")) {
+                        domainSocketPath = domainSocketPath + "/dn._PORT";
+                    }
+                    log.info("Enabling short-circuit reads with domain socket path: {}", domainSocketPath);
+                }
+            } else {
+                log.info("glibc version < 2.34 or detection failed, disabling short-circuit reads for compatibility");
+            }
+
+            // Apply short-circuit read configuration
+            applyShortCircuitConfiguration(hdfsSite, enableShortCircuit, domainSocketPath);
+
+        } catch (Exception e) {
+            log.error("Error occurred during glibc version detection, disabling short-circuit reads for safety", e);
+            applyShortCircuitConfiguration(hdfsSite, false, null);
+        }
+    }
+
+    /**
+     * Check if glibc version is >= 2.34 to determine native library support.
+     * <p>
+     * Detection logic:
+     * 1. First attempt to use 'ldd --version' command to get glibc version
+     * 2. If failed, try 'getconf GNU_LIBC_VERSION' as fallback method
+     * 3. Parse version number and compare with minimum required version (2.34)
+     *
+     * @return true if glibc version >= 2.34, false otherwise
+     */
+    private boolean isGlibcVersionCompatible() {
+        try {
+            // Method 1: Use ldd command to detect glibc version
+            ShellResult result = LinuxOSUtils.execCmd("ldd --version");
+            if (result.getExitCode() == 0) {
+                String output = result.getOutput();
+                String[] lines = output.split("\n");
+                for (String line : lines) {
+                    // Look for lines containing glibc version information
+                    if (line.contains("GNU libc") || line.contains("GLIBC")) {
+                        String version = extractGlibcVersionFromLine(line);
+                        if (version != null) {
+                            boolean supported = compareVersionStrings(version, "2.34") >= 0;
+                            log.info("Detected glibc version via ldd: {}, supported: {}", version, supported);
+                            return supported;
+                        }
+                    }
+                }
+            } else {
+                log.info("ldd --version command failed with exit code: {}", result.getExitCode());
+            }
+
+            // Method 2: Try getconf as fallback detection method
+            return detectGlibcVersionViaGetconf();
+
+        } catch (Exception e) {
+            log.info("Exception during glibc version detection: {}", e.getMessage());
+            return detectGlibcVersionViaGetconf();
+        }
+    }
+
+    /**
+     * Alternative method using getconf command to detect glibc version.
+     *
+     * @return true if detected version >= 2.34, false otherwise
+     */
+    private boolean detectGlibcVersionViaGetconf() {
+        try {
+            ShellResult result = LinuxOSUtils.execCmd("getconf GNU_LIBC_VERSION");
+            if (result.getExitCode() == 0) {
+                String output = result.getOutput().trim();
+                if (output.startsWith("glibc ")) {
+                    String version = output.substring(6).trim();
+                    boolean supported = compareVersionStrings(version, "2.34") >= 0;
+                    log.info("Detected glibc version via getconf: {}, supported: {}", version, supported);
+                    return supported;
+                }
+            }
+        } catch (Exception e) {
+            log.info("getconf method detection failed: {}", e.getMessage());
+        }
+
+        // Default to false for safety
+        log.warn("Could not determine glibc version, defaulting to disable short-circuit reads");
+        return false;
+    }
+
+    /**
+     * Extract glibc version number from ldd output line.
+     * <p>
+     * Supported format examples:
+     * - "ldd (GNU libc) 2.35"
+     * - "ldd (Ubuntu GLIBC 2.35-0ubuntu3.1) 2.35"
+     * - "ldd (GNU libc) 2.34"
+     *
+     * @param line Single line of text from ldd command output
+     * @return Extracted version string like "2.35", or null if extraction failed
+     */
+    private String extractGlibcVersionFromLine(String line) {
+        // Split line by whitespace and look for version pattern
+        String[] parts = line.split("\\s+");
+        for (String part : parts) {
+            // Match version pattern like "2.35"
+            if (part.matches("\\d+\\.\\d+.*")) {
+                // Extract major.minor version numbers
+                String cleanVersion = part.replaceAll("[^\\d.]", "");
+                // Ensure only major and minor versions are kept
+                String[] versionParts = cleanVersion.split("\\.");
+                if (versionParts.length >= 2) {
+                    return versionParts[0] + "." + versionParts[1];
+                }
+                return cleanVersion;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Compare two version strings (major.minor format).
+     *
+     * @param v1 First version string
+     * @param v2 Second version string
+     * @return negative if v1 < v2, zero if equal, positive if v1 > v2
+     */
+    private int compareVersionStrings(String v1, String v2) {
+        String[] parts1 = v1.split("\\.");
+        String[] parts2 = v2.split("\\.");
+
+        int major1 = Integer.parseInt(parts1[0]);
+        int minor1 = parts1.length > 1 ? Integer.parseInt(parts1[1]) : 0;
+
+        int major2 = Integer.parseInt(parts2[0]);
+        int minor2 = parts2.length > 1 ? Integer.parseInt(parts2[1]) : 0;
+
+        // Compare major version first
+        if (major1 != major2) {
+            return major1 - major2;
+        }
+        // Compare minor version when major versions are equal
+        return minor1 - minor2;
+    }
+
+    /**
+     * Apply short-circuit read settings in HDFS site configuration.
+     * <p>
+     * Configuration properties explanation:
+     * - dfs.client.read.shortcircuit: Whether to enable short-circuit reads
+     * - dfs.domain.socket.path: UNIX domain socket path
+     * - dfs.client.read.shortcircuit.streams.cache.size: Short-circuit read stream cache size
+     *
+     * @param hdfsSite           HDFS site configuration map
+     * @param enableShortCircuit Whether to enable short-circuit reads
+     * @param domainSocketPath   Domain socket path (null to disable domain socket)
+     */
+    private void applyShortCircuitConfiguration(
+            Map<String, Object> hdfsSite, boolean enableShortCircuit, String domainSocketPath) {
+
+        // Configure short-circuit read main switch
+        hdfsSite.put("dfs.client.read.shortcircuit", String.valueOf(enableShortCircuit));
+
+        if (enableShortCircuit && domainSocketPath != null) {
+            // Enable UNIX domain socket for high-performance short-circuit reads
+            hdfsSite.put("dfs.domain.socket.path", domainSocketPath);
+            log.info("Short-circuit reads enabled with domain socket path: {}", domainSocketPath);
+        } else {
+            // Remove domain socket path configuration to prevent DataNode startup failures
+            // This avoids startup errors due to libhadoop loading issues
+            hdfsSite.remove("dfs.domain.socket.path");
+            if (enableShortCircuit) {
+                log.info("Short-circuit reads enabled (fallback mode, without domain socket)");
+            } else {
+                log.info("Short-circuit reads disabled");
+            }
+        }
+
+        // Configure stream cache based on short-circuit read status
+        configureShortCircuitStreamCache(hdfsSite, enableShortCircuit);
+    }
+
+    /**
+     * Configure short-circuit read stream cache settings.
+     *
+     * @param hdfsSite           HDFS site configuration map
+     * @param enableShortCircuit Whether short-circuit reads are enabled
+     */
+    private void configureShortCircuitStreamCache(Map<String, Object> hdfsSite, boolean enableShortCircuit) {
+        if (enableShortCircuit) {
+            // Optimize cache size when short-circuit reads are enabled for better performance
+            Object currentCacheSize = hdfsSite.get("dfs.client.read.shortcircuit.streams.cache.size");
+            if (currentCacheSize == null || "0".equals(currentCacheSize.toString())) {
+                hdfsSite.put("dfs.client.read.shortcircuit.streams.cache.size", "4096");
+                log.info("Configured short-circuit read stream cache size to 4096");
+            }
+        } else {
+            // Set cache to 0 when short-circuit reads are disabled to save memory
+            hdfsSite.put("dfs.client.read.shortcircuit.streams.cache.size", "0");
+            log.info("Short-circuit read stream cache disabled");
+        }
+    }
+
+    private static String replaceOr(Object raw, String from, String to, String fallback) {
+        if (raw == null) {
+            return fallback;
+        }
+        return raw.toString().replace(from, to);
+    }
+}
